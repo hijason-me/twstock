@@ -1,7 +1,0 @@
-fastapi==0.111.0
-uvicorn[standard]==0.29.0
-asyncpg==0.29.0
-sqlalchemy[asyncio]==2.0.30
-pydantic-settings==2.2.1
-redis[asyncio]==5.0.4
-structlog==24.1.0

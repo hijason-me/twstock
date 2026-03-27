@@ -1,15 +1,6 @@
 apiVersion: v2
 name: twstock
-description: 台股量化分析系統 — Helm chart for Kubernetes deployment
+description: 台股量化分析系統 — 資料管線
 type: application
 version: 0.1.0
-appVersion: "1.0.0"
-
-maintainers:
-  - name: TWStock Team
-
-keywords:
-  - twstock
-  - taiwan-stock
-  - quantitative-analysis
-  - fintech
+appVersion: "2.0.0"

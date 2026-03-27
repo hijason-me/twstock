@@ -39,8 +39,6 @@ spec:
           volumeMounts:
             - name: data
               mountPath: /var/lib/postgresql/data
-            - name: init-scripts
-              mountPath: /docker-entrypoint-initdb.d
             - name: pg-hba
               mountPath: /etc/postgresql/pg_hba.conf
               subPath: pg_hba.conf
@@ -57,9 +55,6 @@ spec:
           resources:
             {{- toYaml .Values.postgresql.primary.resources | nindent 12 }}
       volumes:
-        - name: init-scripts
-          configMap:
-            name: {{ include "twstock.fullname" . }}-db-init
         - name: pg-hba
           configMap:
             name: {{ include "twstock.fullname" . }}-pg-hba

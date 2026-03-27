@@ -93,9 +93,10 @@ analyzer:
       limits:   { cpu: "500m", memory: "512Mi" }
 
 # ============================================================
-# API Deployment
+# API Deployment (disabled in MVP — Grafana connects directly to DB)
 # ============================================================
 api:
+  enabled: false
   replicaCount: 2
   resources:
     requests: { cpu: "200m", memory: "256Mi" }
@@ -143,7 +144,7 @@ postgresql:
 # Redis
 # ============================================================
 redis:
-  enabled: true
+  enabled: false
   image:
     repository: redis
     tag: "7-alpine"

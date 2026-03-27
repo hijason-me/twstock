@@ -1,0 +1,87 @@
+{{/*
+  DB Init Job — Helm post-install / post-upgrade hook
+  Runs init.sql against TimescaleDB every time the chart is installed or
+  upgraded. Uses IF NOT EXISTS throughout so it is safe to re-run.
+*/}}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "twstock.fullname" . }}-db-init-sql
+  labels:
+    {{- include "twstock.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook":               post-install,post-upgrade
+    "helm.sh/hook-weight":        "-10"
+    "helm.sh/hook-delete-policy": before-hook-creation
+data:
+  init.sql: |
+{{ .Files.Get "files/init.sql" | indent 4 }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "twstock.fullname" . }}-db-init
+  labels:
+    {{- include "twstock.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook":               post-install,post-upgrade
+    "helm.sh/hook-weight":        "0"
+    "helm.sh/hook-delete-policy": before-hook-creation
+spec:
+  backoffLimit: 5
+  template:
+    spec:
+      restartPolicy: OnFailure
+
+      # Wait for PostgreSQL to accept connections before running SQL
+      initContainers:
+        - name: wait-for-postgres
+          image: postgres:16-alpine
+          command:
+            - sh
+            - -c
+            - |
+              echo "Waiting for PostgreSQL..."
+              until pg_isready -h $PGHOST -p 5432 -U $PGUSER; do
+                sleep 3
+              done
+              echo "PostgreSQL is ready."
+          env:
+            - name: PGHOST
+              value: {{ include "twstock.fullname" . }}-postgresql
+            - name: PGUSER
+              value: {{ .Values.postgresql.auth.username | quote }}
+
+      containers:
+        - name: db-init
+          image: "{{ .Values.postgresql.image.repository }}:{{ .Values.postgresql.image.tag }}"
+          command:
+            - sh
+            - -c
+            - |
+              echo "Creating database if not exists..."
+              psql -c "SELECT 1 FROM pg_database WHERE datname='${PGDATABASE}'" \
+                | grep -q 1 || psql -c "CREATE DATABASE ${PGDATABASE};"
+              echo "Running init.sql..."
+              psql -d $PGDATABASE -f /init/init.sql
+              echo "Done."
+          env:
+            - name: PGHOST
+              value: {{ include "twstock.fullname" . }}-postgresql
+            - name: PGPORT
+              value: "5432"
+            - name: PGUSER
+              value: {{ .Values.postgresql.auth.username | quote }}
+            - name: PGDATABASE
+              value: {{ .Values.postgresql.auth.database | quote }}
+            - name: PGPASSWORD
+              value: {{ .Values.postgresql.auth.password | quote }}
+          volumeMounts:
+            - name: init-sql
+              mountPath: /init
+
+      volumes:
+        - name: init-sql
+          configMap:
+            name: {{ include "twstock.fullname" . }}-db-init-sql

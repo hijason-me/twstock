@@ -104,3 +104,53 @@ jobs:
 
       - name: Lint chart
         run: helm lint helm/twstock --strict
+
+  # ------------------------------------------------------------------ #
+  # Writeback — update helm/twstock/values.yaml with the deployed tag  #
+  # ArgoCD detects this git change and auto-syncs (no Image Updater    #
+  # needed). Uses [skip ci] to prevent infinite loop.                  #
+  # ------------------------------------------------------------------ #
+  update-helm-tag:
+    name: Writeback image tag to values.yaml
+    runs-on: ubuntu-latest
+    needs: helm-lint
+    # Only run on direct pushes (not PRs); tags use semver, branches use SHA
+    if: github.event_name == 'push'
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Use default GITHUB_TOKEN; needs "Read and write permissions" in
+          # Settings → Actions → General → Workflow permissions
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ref:   ${{ github.ref }}
+
+      - name: Compute new tag
+        id: tag
+        run: |
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            # v1.2.3  →  1.2.3  (strip leading 'v')
+            NEW_TAG=$(echo "${{ github.ref_name }}" | sed 's/^v//')
+          else
+            # main push  →  sha-abc1234
+            NEW_TAG="sha-$(echo '${{ github.sha }}' | cut -c1-7)"
+          fi
+          echo "value=${NEW_TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Patch image.tag in values.yaml
+        run: |
+          NEW_TAG="${{ steps.tag.outputs.value }}"
+          sed -i "s/^  tag:.*$/  tag: \"${NEW_TAG}\"/" helm/twstock/values.yaml
+
+      - name: Commit and push
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add helm/twstock/values.yaml
+          # Skip commit if nothing changed (idempotent)
+          git diff --cached --quiet && echo "No tag change, skipping commit." && exit 0
+          git commit -m "chore: bump image.tag to ${{ steps.tag.outputs.value }} [skip ci]"
+          git push

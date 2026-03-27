@@ -15,7 +15,7 @@ global:
 # ============================================================
 image:
   registry:   ghcr.io
-  tag:        "latest"   # override per deploy, e.g. --set image.tag=sha-abc1234
+  tag:        "sha-0000000"   # managed by CI — do not edit manually
   pullPolicy: IfNotPresent
 
 images:

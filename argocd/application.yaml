@@ -20,12 +20,11 @@ spec:
 
     helm:
       releaseName: twstock
-      # Override image tag to match the SHA/tag built by CI.
-      # In practice, use a CD tool (e.g. ArgoCD Image Updater) to
-      # automatically bump this value when a new image is pushed to GHCR.
+      # image.tag is intentionally NOT overridden here.
+      # CI writes the exact sha-xxxxxxx (or semver) back to
+      # helm/twstock/values.yaml after every successful build.
+      # ArgoCD detects that git commit and syncs automatically.
       values: |
-        image:
-          tag: "latest"
         secrets:
           finmindApiToken: ""   # inject via Sealed Secrets or ESO
           fredApiKey:      ""

@@ -4,11 +4,12 @@ Usage:
     python -m src.main --job <job_name>
 
 Available jobs:
-    daily_prices        - TWSE 收盤行情 (每日盤後)
-    daily_institutional - 三大法人 + 期貨未平倉 + 融資融券 (每日盤後)
-    monthly_revenue     - 月營收 (每月 10 日後)
-    quarterly_financials- 季報財務三率 (每季財報公佈後)
-    macro_indicators    - 總經指標 (每日)
+    daily_prices          - TWSE 收盤行情 (每日盤後)
+    daily_institutional   - 三大法人 + 期貨未平倉 + 融資融券 (每日盤後)
+    monthly_revenue       - 月營收 (每月 10 日後)
+    quarterly_financials  - 季報財務三率 (每季財報公佈後)
+    macro_indicators      - 總經指標 (每日)
+    weekly_major_holders  - 千張大戶持股比例 (每週)
 """
 import argparse
 import asyncio
@@ -139,6 +140,19 @@ async def upsert_revenue(session, records: list[dict]):
     await session.commit()
 
 
+async def upsert_major_holders(session, records: list[dict]):
+    if not records:
+        return
+    await session.execute(text("""
+        INSERT INTO major_holders (time, ticker, holders_1000_ratio, retail_ratio)
+        VALUES (:date::timestamptz, :ticker, :holders_1000_ratio, :retail_ratio)
+        ON CONFLICT (time, ticker) DO UPDATE
+          SET holders_1000_ratio = EXCLUDED.holders_1000_ratio,
+              retail_ratio       = EXCLUDED.retail_ratio
+    """), records)
+    await session.commit()
+
+
 async def upsert_financials(session, records: list[dict]):
     if not records:
         return
@@ -225,12 +239,26 @@ async def job_quarterly_financials():
     logger.info("job_quarterly_financials complete: %d records", len(records))
 
 
+async def job_weekly_major_holders():
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(text("SELECT ticker FROM stocks LIMIT 500"))
+        tickers = [r[0] for r in result.fetchall()]
+
+    collector = FinMindCollector(api_token=settings.finmind_api_token)
+    records = await collector.fetch_major_holders(tickers)
+
+    async with AsyncSessionLocal() as session:
+        await upsert_major_holders(session, records)
+    logger.info("job_weekly_major_holders complete: %d records", len(records))
+
+
 JOBS = {
-    "daily_prices":         job_daily_prices,
-    "daily_institutional":  job_daily_institutional,
-    "macro_indicators":     job_macro_indicators,
-    "monthly_revenue":      job_monthly_revenue,
-    "quarterly_financials": job_quarterly_financials,
+    "daily_prices":          job_daily_prices,
+    "daily_institutional":   job_daily_institutional,
+    "macro_indicators":      job_macro_indicators,
+    "monthly_revenue":       job_monthly_revenue,
+    "quarterly_financials":  job_quarterly_financials,
+    "weekly_major_holders":  job_weekly_major_holders,
 }
 
 

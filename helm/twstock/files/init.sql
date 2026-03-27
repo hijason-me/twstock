@@ -180,7 +180,8 @@ CREATE TABLE IF NOT EXISTS alerts (
     severity     VARCHAR(10)  NOT NULL CHECK (severity IN ('INFO','WARNING','CRITICAL')),
     message      TEXT         NOT NULL,
     metadata     JSONB,
-    acknowledged BOOLEAN      DEFAULT FALSE
+    acknowledged BOOLEAN      DEFAULT FALSE,
+    notified_at  TIMESTAMPTZ  DEFAULT NULL  -- Telegram 推送時間，NULL 表示尚未通知
 );
 CREATE INDEX IF NOT EXISTS idx_alerts_created_at ON alerts (created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_alerts_ticker ON alerts (ticker) WHERE ticker IS NOT NULL;

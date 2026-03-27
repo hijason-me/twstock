@@ -10,7 +10,7 @@ metadata:
     notifications.argoproj.io/subscribe.on-sync-failed.slack: twstock-alerts
     notifications.argoproj.io/subscribe.on-health-degraded.slack: twstock-alerts
 spec:
-  project: default           # ArgoCD project; create a dedicated one for prod
+  project: hijason-me           # ArgoCD project; create a dedicated one for prod
 
   # ── Source ──────────────────────────────────────────────────────────
   source:

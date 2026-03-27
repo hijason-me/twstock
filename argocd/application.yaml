@@ -1,0 +1,64 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: twstock
+  namespace: argocd          # ArgoCD control-plane namespace
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io   # cascade-delete on app removal
+  annotations:
+    # Notify on sync events (requires argocd-notifications)
+    notifications.argoproj.io/subscribe.on-sync-failed.slack: twstock-alerts
+    notifications.argoproj.io/subscribe.on-health-degraded.slack: twstock-alerts
+spec:
+  project: default           # ArgoCD project; create a dedicated one for prod
+
+  # ── Source ──────────────────────────────────────────────────────────
+  source:
+    repoURL:        https://github.com/hijason-me/twstock.git
+    targetRevision: main      # track main; change to a tag for pinned deploys
+    path:           helm/twstock
+
+    helm:
+      releaseName: twstock
+      # Override image tag to match the SHA/tag built by CI.
+      # In practice, use a CD tool (e.g. ArgoCD Image Updater) to
+      # automatically bump this value when a new image is pushed to GHCR.
+      values: |
+        image:
+          tag: "latest"
+        secrets:
+          finmindApiToken: ""   # inject via Sealed Secrets or ESO
+          fredApiKey:      ""
+        api:
+          ingress:
+            enabled: false      # flip to true + set host for external access
+
+  # ── Destination ─────────────────────────────────────────────────────
+  destination:
+    server:    https://kubernetes.default.svc   # in-cluster; change for remote
+    namespace: twstock
+
+  # ── Sync policy ─────────────────────────────────────────────────────
+  syncPolicy:
+    automated:
+      prune:    true    # delete resources removed from git
+      selfHeal: true    # revert manual kubectl edits
+    syncOptions:
+      - CreateNamespace=true          # auto-create twstock namespace
+      - PrunePropagationPolicy=foreground
+      - ServerSideApply=true          # avoids "too long annotation" errors on CRDs
+    retry:
+      limit: 5
+      backoff:
+        duration:    5s
+        factor:      2
+        maxDuration: 3m
+
+  # ── Health checks ────────────────────────────────────────────────────
+  # ArgoCD understands Deployment / StatefulSet / CronJob health natively.
+  # Add ignoreDifferences if TimescaleDB StatefulSet emits noisy diffs.
+  ignoreDifferences:
+    - group:  apps
+      kind:   StatefulSet
+      jsonPointers:
+        - /spec/volumeClaimTemplates   # PVC template is immutable after creation

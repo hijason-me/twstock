@@ -1,0 +1,123 @@
+{{- $fullName := include "twstock.fullname" . }}
+{{- $image    := include "twstock.analyzerImage" . }}
+{{- $labels   := include "twstock.labels" . }}
+
+{{/* ── valuations ── */}}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ $fullName }}-analyze-valuations
+  labels:
+    {{- $labels | nindent 4 }}
+    app.kubernetes.io/component: analyzer
+spec:
+  schedule: {{ .Values.analyzer.valuations.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      template:
+        metadata:
+          labels:
+            {{- include "twstock.selectorLabels" . | nindent 12 }}
+            app.kubernetes.io/component: analyzer
+        spec:
+          restartPolicy: OnFailure
+          {{- with .Values.global.imagePullSecrets }}
+          imagePullSecrets:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          containers:
+            - name: analyzer
+              image: {{ $image }}
+              imagePullPolicy: {{ .Values.image.pullPolicy }}
+              args: ["--job", {{ .Values.analyzer.valuations.job | quote }}]
+              envFrom:
+                - configMapRef:
+                    name: {{ $fullName }}-config
+                - secretRef:
+                    name: {{ $fullName }}-secrets
+              resources:
+                {{- toYaml .Values.analyzer.valuations.resources | nindent 16 }}
+---
+{{/* ── multi_factor ── */}}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ $fullName }}-analyze-multi-factor
+  labels:
+    {{- $labels | nindent 4 }}
+    app.kubernetes.io/component: analyzer
+spec:
+  schedule: {{ .Values.analyzer.multiFactorSignals.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      template:
+        metadata:
+          labels:
+            {{- include "twstock.selectorLabels" . | nindent 12 }}
+            app.kubernetes.io/component: analyzer
+        spec:
+          restartPolicy: OnFailure
+          {{- with .Values.global.imagePullSecrets }}
+          imagePullSecrets:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          containers:
+            - name: analyzer
+              image: {{ $image }}
+              imagePullPolicy: {{ .Values.image.pullPolicy }}
+              args: ["--job", {{ .Values.analyzer.multiFactorSignals.job | quote }}]
+              envFrom:
+                - configMapRef:
+                    name: {{ $fullName }}-config
+                - secretRef:
+                    name: {{ $fullName }}-secrets
+              resources:
+                {{- toYaml .Values.analyzer.multiFactorSignals.resources | nindent 16 }}
+---
+{{/* ── alerts ── */}}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ $fullName }}-analyze-alerts
+  labels:
+    {{- $labels | nindent 4 }}
+    app.kubernetes.io/component: analyzer
+spec:
+  schedule: {{ .Values.analyzer.alerts.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      template:
+        metadata:
+          labels:
+            {{- include "twstock.selectorLabels" . | nindent 12 }}
+            app.kubernetes.io/component: analyzer
+        spec:
+          restartPolicy: OnFailure
+          {{- with .Values.global.imagePullSecrets }}
+          imagePullSecrets:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          containers:
+            - name: analyzer
+              image: {{ $image }}
+              imagePullPolicy: {{ .Values.image.pullPolicy }}
+              args: ["--job", {{ .Values.analyzer.alerts.job | quote }}]
+              envFrom:
+                - configMapRef:
+                    name: {{ $fullName }}-config
+                - secretRef:
+                    name: {{ $fullName }}-secrets
+              resources:
+                {{- toYaml .Values.analyzer.alerts.resources | nindent 16 }}

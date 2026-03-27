@@ -1,0 +1,173 @@
+# ============================================================
+# TWStock Helm Chart — Default Values
+# ============================================================
+
+# -- Global image registry prefix (override for private registries)
+global:
+  imageRegistry: ""
+  imagePullSecrets: []
+
+# ============================================================
+# Image configuration
+# Shared registry, tag, and pull policy.
+# Each service has its own repository under images.*
+# CI pushes to: ghcr.io/hijason-me/twstock-{api,collector,analyzer}
+# ============================================================
+image:
+  registry:   ghcr.io
+  tag:        "latest"   # override per deploy, e.g. --set image.tag=sha-abc1234
+  pullPolicy: IfNotPresent
+
+images:
+  api:
+    repository: hijason-me/twstock-api
+  collector:
+    repository: hijason-me/twstock-collector
+  analyzer:
+    repository: hijason-me/twstock-analyzer
+
+# ============================================================
+# Collector CronJobs
+# ============================================================
+collector:
+  # Daily price + institutional data (weekdays at 18:30 TST = 10:30 UTC)
+  dailyPrices:
+    schedule: "30 10 * * 1-5"
+    job: "daily_prices"
+    resources:
+      requests: { cpu: "100m", memory: "256Mi" }
+      limits:   { cpu: "500m", memory: "512Mi" }
+
+  dailyInstitutional:
+    schedule: "45 10 * * 1-5"
+    job: "daily_institutional"
+    resources:
+      requests: { cpu: "100m", memory: "256Mi" }
+      limits:   { cpu: "500m", memory: "512Mi" }
+
+  macroIndicators:
+    schedule: "0 2 * * *"   # daily at 02:00 UTC
+    job: "macro_indicators"
+    resources:
+      requests: { cpu: "100m", memory: "256Mi" }
+      limits:   { cpu: "300m", memory: "256Mi" }
+
+  # Monthly revenue (run daily 10–20 of each month to catch late filings)
+  monthlyRevenue:
+    schedule: "0 12 10-20 * *"
+    job: "monthly_revenue"
+    resources:
+      requests: { cpu: "200m", memory: "512Mi" }
+      limits:   { cpu: "1000m", memory: "1Gi" }
+
+  quarterlyFinancials:
+    schedule: "0 13 * * 1"   # every Monday — FinMind updates quarterly data
+    job: "quarterly_financials"
+    resources:
+      requests: { cpu: "200m", memory: "512Mi" }
+      limits:   { cpu: "1000m", memory: "1Gi" }
+
+# ============================================================
+# Analyzer CronJobs
+# ============================================================
+analyzer:
+  valuations:
+    schedule: "0 11 * * 1-5"   # after collector finishes
+    job: "valuations"
+    resources:
+      requests: { cpu: "200m", memory: "512Mi" }
+      limits:   { cpu: "1000m", memory: "1Gi" }
+
+  multiFactorSignals:
+    schedule: "30 11 * * 1-5"
+    job: "multi_factor"
+    resources:
+      requests: { cpu: "200m", memory: "512Mi" }
+      limits:   { cpu: "1000m", memory: "1Gi" }
+
+  alerts:
+    schedule: "0 12 * * 1-5"
+    job: "alerts"
+    resources:
+      requests: { cpu: "100m", memory: "256Mi" }
+      limits:   { cpu: "500m", memory: "512Mi" }
+
+# ============================================================
+# API Deployment
+# ============================================================
+api:
+  replicaCount: 2
+  resources:
+    requests: { cpu: "200m", memory: "256Mi" }
+    limits:   { cpu: "1000m", memory: "512Mi" }
+  service:
+    type: ClusterIP
+    port: 8000
+  ingress:
+    enabled: false
+    className: "nginx"
+    annotations: {}
+    host: twstock.example.com
+    tls: []
+  autoscaling:
+    enabled: false
+    minReplicas: 2
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 70
+
+# ============================================================
+# PostgreSQL (TimescaleDB)
+# ============================================================
+postgresql:
+  enabled: true
+  image:
+    repository: timescale/timescaledb
+    tag: "latest-pg16"
+  auth:
+    database: twstock
+    username: twstock
+    password: twstock-secret   # Override in production with sealed-secrets / vault
+  primary:
+    persistence:
+      enabled: true
+      storageClass: ""           # use cluster default StorageClass
+      size: 50Gi
+    resources:
+      requests: { cpu: "500m", memory: "1Gi" }
+      limits:   { cpu: "2000m", memory: "4Gi" }
+  initdbScripts:
+    init.sql: |
+      -- Mounted from ConfigMap; see templates/configmap.yaml
+
+# ============================================================
+# Redis
+# ============================================================
+redis:
+  enabled: true
+  image:
+    repository: redis
+    tag: "7-alpine"
+  resources:
+    requests: { cpu: "50m", memory: "64Mi" }
+    limits:   { cpu: "200m", memory: "256Mi" }
+  persistence:
+    enabled: false
+
+# ============================================================
+# Application secrets (override via --set or sealed-secrets)
+# ============================================================
+secrets:
+  finmindApiToken: ""
+  fredApiKey: ""
+
+# ============================================================
+# Common pod settings
+# ============================================================
+nodeSelector: {}
+tolerations: []
+affinity: {}
+podAnnotations: {}
+
+serviceAccount:
+  create: false
+  name: ""

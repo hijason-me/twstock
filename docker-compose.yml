@@ -1,0 +1,100 @@
+version: "3.9"
+
+# ============================================================
+# TWStock — Local Development Environment
+# ============================================================
+# Usage:
+#   docker compose up -d                  # start all infra
+#   docker compose up --build collector   # rebuild & run collector
+#
+# Environment variables override (create a .env file):
+#   TWSTOCK_FINMIND_API_TOKEN=<token>
+#   TWSTOCK_FRED_API_KEY=<key>
+
+x-common-env: &common-env
+  TWSTOCK_DATABASE_URL: postgresql+asyncpg://twstock:twstock@postgres:5432/twstock
+  TWSTOCK_REDIS_URL: redis://redis:6379/0
+  TWSTOCK_LOG_LEVEL: INFO
+  TWSTOCK_FINMIND_API_TOKEN: ${TWSTOCK_FINMIND_API_TOKEN:-}
+  TWSTOCK_FRED_API_KEY: ${TWSTOCK_FRED_API_KEY:-}
+
+services:
+
+  # ── Infrastructure ─────────────────────────────────────────
+
+  postgres:
+    image: timescale/timescaledb:latest-pg16
+    environment:
+      POSTGRES_DB: twstock
+      POSTGRES_USER: twstock
+      POSTGRES_PASSWORD: twstock
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "twstock"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  # ── Application services ────────────────────────────────────
+
+  collector:
+    build:
+      context: ./services/collector
+      dockerfile: Dockerfile
+    environment:
+      <<: *common-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # Override CMD for one-off jobs:
+    #   docker compose run collector --job daily_prices
+    command: ["--job", "daily_prices"]
+    profiles: ["jobs"]   # not started by default; run explicitly
+
+  analyzer:
+    build:
+      context: ./services/analyzer
+      dockerfile: Dockerfile
+    environment:
+      <<: *common-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["--job", "valuations"]
+    profiles: ["jobs"]
+
+  api:
+    build:
+      context: ./services/api
+      dockerfile: Dockerfile
+    environment:
+      <<: *common-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  postgres_data:

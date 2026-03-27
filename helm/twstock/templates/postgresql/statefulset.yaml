@@ -30,6 +30,9 @@ spec:
               value: {{ .Values.postgresql.auth.username | quote }}
             - name: POSTGRES_PASSWORD
               value: {{ .Values.postgresql.auth.password | quote }}
+            - name: POSTGRES_INITDB_ARGS
+              value: "--auth-host=scram-sha-256"
+          args: ["-c", "hba_file=/etc/postgresql/pg_hba.conf"]
           ports:
             - name: postgresql
               containerPort: 5432
@@ -38,6 +41,9 @@ spec:
               mountPath: /var/lib/postgresql/data
             - name: init-scripts
               mountPath: /docker-entrypoint-initdb.d
+            - name: pg-hba
+              mountPath: /etc/postgresql/pg_hba.conf
+              subPath: pg_hba.conf
           livenessProbe:
             exec:
               command: ["pg_isready", "-U", {{ .Values.postgresql.auth.username | quote }}]
@@ -54,6 +60,9 @@ spec:
         - name: init-scripts
           configMap:
             name: {{ include "twstock.fullname" . }}-db-init
+        - name: pg-hba
+          configMap:
+            name: {{ include "twstock.fullname" . }}-pg-hba
   volumeClaimTemplates:
     - metadata:
         name: data

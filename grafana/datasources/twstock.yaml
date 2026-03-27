@@ -10,7 +10,7 @@ datasources:
     secureJsonData:
       password: twstock-secret   # 與 helm/twstock/values.yaml postgresql.auth.password 一致
     jsonData:
-      sslmode: disable
+      sslmode: require
       maxOpenConns: 10
       maxIdleConns: 5
       connMaxLifetime: 14400

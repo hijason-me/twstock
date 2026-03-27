@@ -1,0 +1,21 @@
+{{- if .Values.postgresql.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "twstock.fullname" . }}-pg-hba
+  labels:
+    {{- include "twstock.labels" . | nindent 4 }}
+    app.kubernetes.io/component: postgresql
+data:
+  pg_hba.conf: |
+    # TYPE  DATABASE  USER  ADDRESS          METHOD
+    # Local socket (always allow)
+    local   all       all                    trust
+    # SSL connections from anywhere
+    hostssl all       all   0.0.0.0/0        scram-sha-256
+    hostssl all       all   ::/0             scram-sha-256
+    # Non-SSL connections within cluster pod network
+    host    all       all   10.0.0.0/8       scram-sha-256
+    host    all       all   172.16.0.0/12    scram-sha-256
+    host    all       all   192.168.0.0/16   scram-sha-256
+{{- end }}

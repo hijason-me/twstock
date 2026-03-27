@@ -1,0 +1,223 @@
+{
+  "__inputs": [
+    {
+      "name": "DS_TWSTOCK",
+      "label": "TWStock TimescaleDB",
+      "type": "datasource",
+      "pluginId": "postgres",
+      "pluginName": "PostgreSQL"
+    }
+  ],
+  "title": "03 · 基本面與技術面",
+  "uid": "twstock-fundamentals",
+  "description": "月營收 MoM/YoY、獲利三率、均線、價量結構",
+  "tags": ["twstock", "fundamentals", "technicals"],
+  "timezone": "Asia/Taipei",
+  "time": { "from": "now-1y", "to": "now" },
+  "refresh": "1h",
+  "schemaVersion": 39,
+  "templating": {
+    "list": [
+      {
+        "name": "ticker",
+        "label": "股票代號",
+        "type": "query",
+        "datasource": { "type": "postgres", "uid": "${DS_TWSTOCK}" },
+        "query": "SELECT ticker || ' ' || name FROM stocks ORDER BY ticker",
+        "regex": "^(\\S+)",
+        "current": {},
+        "multi": false,
+        "includeAll": false,
+        "refresh": 2
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "月營收 — $ticker (千元)",
+      "type": "barchart",
+      "gridPos": { "x": 0, "y": 0, "w": 14, "h": 9 },
+      "datasource": { "type": "postgres", "uid": "${DS_TWSTOCK}" },
+      "targets": [
+        {
+          "rawSql": "SELECT (year_month || '-01')::date AS time, revenue AS \"月營收 (千元)\" FROM monthly_revenue WHERE ticker = '$ticker' ORDER BY year_month DESC LIMIT 24",
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "color": { "mode": "fixed", "fixedColor": "blue" }
+        }
+      }
+    },
+    {
+      "id": 2,
+      "title": "月營收 YoY / MoM — $ticker (%)",
+      "type": "timeseries",
+      "gridPos": { "x": 14, "y": 0, "w": 10, "h": 9 },
+      "datasource": { "type": "postgres", "uid": "${DS_TWSTOCK}" },
+      "targets": [
+        {
+          "rawSql": "SELECT (year_month || '-01')::date AS time, revenue_yoy AS \"YoY (%)\", revenue_mom AS \"MoM (%)\" FROM monthly_revenue WHERE ticker = '$ticker' ORDER BY year_month DESC LIMIT 24",
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "custom": { "lineWidth": 2 },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 0 },
+              { "color": "green", "value": 15 }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "YoY (%)" },
+            "properties": [
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "green" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "MoM (%)" },
+            "properties": [
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "orange" } }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": 3,
+      "title": "獲利三率 — $ticker (%)",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 9, "w": 14, "h": 9 },
+      "datasource": { "type": "postgres", "uid": "${DS_TWSTOCK}" },
+      "targets": [
+        {
+          "rawSql": "SELECT (REPLACE(year_quarter, '-Q', '-') || '-01')::date AS time, gross_profit_margin AS \"毛利率 (%)\", operating_margin AS \"營益率 (%)\", net_profit_margin AS \"淨利率 (%)\" FROM financial_statements WHERE ticker = '$ticker' ORDER BY year_quarter DESC LIMIT 12",
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "custom": { "lineWidth": 2, "fillOpacity": 5 }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "毛利率 (%)" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "green" } }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "營益率 (%)" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "blue" } }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "淨利率 (%)" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "orange" } }]
+          }
+        ]
+      }
+    },
+    {
+      "id": 4,
+      "title": "EPS 趨勢 — $ticker",
+      "type": "barchart",
+      "gridPos": { "x": 14, "y": 9, "w": 10, "h": 9 },
+      "datasource": { "type": "postgres", "uid": "${DS_TWSTOCK}" },
+      "targets": [
+        {
+          "rawSql": "SELECT (REPLACE(year_quarter, '-Q', '-') || '-01')::date AS time, eps AS \"EPS\" FROM financial_statements WHERE ticker = '$ticker' ORDER BY year_quarter DESC LIMIT 12",
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyTWD",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 0 },
+              { "color": "green", "value": 1 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 5,
+      "title": "股價與均線 — $ticker",
+      "description": "5MA / 20MA / 60MA 多頭排列判斷",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 18, "w": 18, "h": 10 },
+      "datasource": { "type": "postgres", "uid": "${DS_TWSTOCK}" },
+      "targets": [
+        {
+          "rawSql": "SELECT time, close AS \"收盤價\", AVG(close) OVER (ORDER BY time ROWS BETWEEN 4 PRECEDING AND CURRENT ROW) AS \"5MA\", AVG(close) OVER (ORDER BY time ROWS BETWEEN 19 PRECEDING AND CURRENT ROW) AS \"20MA\", AVG(close) OVER (ORDER BY time ROWS BETWEEN 59 PRECEDING AND CURRENT ROW) AS \"60MA\" FROM price_history WHERE ticker = '$ticker' AND $__timeFilter(time) ORDER BY time",
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "currencyTWD", "custom": { "lineWidth": 1 } },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "收盤價" },
+            "properties": [
+              { "id": "custom.lineWidth", "value": 2 },
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "white" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "5MA" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "yellow" } }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "20MA" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "orange" } }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "60MA" },
+            "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "purple" } }]
+          }
+        ]
+      }
+    },
+    {
+      "id": 6,
+      "title": "成交量 — $ticker",
+      "type": "barchart",
+      "gridPos": { "x": 0, "y": 28, "w": 18, "h": 5 },
+      "datasource": { "type": "postgres", "uid": "${DS_TWSTOCK}" },
+      "targets": [
+        {
+          "rawSql": "SELECT time, volume AS \"成交量\", AVG(volume) OVER (ORDER BY time ROWS BETWEEN 4 PRECEDING AND CURRENT ROW) AS \"5日均量\" FROM price_history WHERE ticker = '$ticker' AND $__timeFilter(time) ORDER BY time",
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "none", "custom": { "lineWidth": 1 } }
+      }
+    },
+    {
+      "id": 7,
+      "title": "財報最新概覽 — $ticker",
+      "type": "table",
+      "gridPos": { "x": 18, "y": 18, "w": 6, "h": 15 },
+      "datasource": { "type": "postgres", "uid": "${DS_TWSTOCK}" },
+      "targets": [
+        {
+          "rawSql": "SELECT year_quarter AS \"季度\", ROUND(gross_profit_margin, 2) AS \"毛利率 %\", ROUND(operating_margin, 2) AS \"營益率 %\", ROUND(net_profit_margin, 2) AS \"淨利率 %\", ROUND(eps, 2) AS \"EPS\" FROM financial_statements WHERE ticker = '$ticker' ORDER BY year_quarter DESC LIMIT 8",
+          "format": "table"
+        }
+      ]
+    }
+  ]
+}

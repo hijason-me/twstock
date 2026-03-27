@@ -1,0 +1,8 @@
+# Ignore everything at the user home level except the TWStock project
+/*
+!/.gitignore
+!/Documents/
+/Documents/*
+!/Documents/Claude/
+/Documents/Claude/*
+!/Documents/Claude/TWStock/

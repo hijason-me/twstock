@@ -1,0 +1,203 @@
+{{- $fullName := include "twstock.fullname" . }}
+{{- $image    := include "twstock.image" . }}
+{{- $labels   := include "twstock.labels" . }}
+
+{{/* ── daily_prices ── */}}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ $fullName }}-collect-daily-prices
+  labels:
+    {{- $labels | nindent 4 }}
+    app.kubernetes.io/component: collector
+spec:
+  schedule: {{ .Values.collector.dailyPrices.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        metadata:
+          labels:
+            {{- include "twstock.selectorLabels" . | nindent 12 }}
+            app.kubernetes.io/component: collector
+        spec:
+          restartPolicy: OnFailure
+          {{- with .Values.global.imagePullSecrets }}
+          imagePullSecrets:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          containers:
+            - name: collector
+              image: {{ $image }}
+              imagePullPolicy: {{ .Values.image.pullPolicy }}
+              args: ["--job", {{ .Values.collector.dailyPrices.job | quote }}]
+              envFrom:
+                - configMapRef:
+                    name: {{ $fullName }}-config
+                - secretRef:
+                    name: {{ $fullName }}-secrets
+              resources:
+                {{- toYaml .Values.collector.dailyPrices.resources | nindent 16 }}
+---
+{{/* ── daily_institutional ── */}}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ $fullName }}-collect-daily-institutional
+  labels:
+    {{- $labels | nindent 4 }}
+    app.kubernetes.io/component: collector
+spec:
+  schedule: {{ .Values.collector.dailyInstitutional.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        metadata:
+          labels:
+            {{- include "twstock.selectorLabels" . | nindent 12 }}
+            app.kubernetes.io/component: collector
+        spec:
+          restartPolicy: OnFailure
+          {{- with .Values.global.imagePullSecrets }}
+          imagePullSecrets:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          containers:
+            - name: collector
+              image: {{ $image }}
+              imagePullPolicy: {{ .Values.image.pullPolicy }}
+              args: ["--job", {{ .Values.collector.dailyInstitutional.job | quote }}]
+              envFrom:
+                - configMapRef:
+                    name: {{ $fullName }}-config
+                - secretRef:
+                    name: {{ $fullName }}-secrets
+              resources:
+                {{- toYaml .Values.collector.dailyInstitutional.resources | nindent 16 }}
+---
+{{/* ── macro_indicators ── */}}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ $fullName }}-collect-macro
+  labels:
+    {{- $labels | nindent 4 }}
+    app.kubernetes.io/component: collector
+spec:
+  schedule: {{ .Values.collector.macroIndicators.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        metadata:
+          labels:
+            {{- include "twstock.selectorLabels" . | nindent 12 }}
+            app.kubernetes.io/component: collector
+        spec:
+          restartPolicy: OnFailure
+          {{- with .Values.global.imagePullSecrets }}
+          imagePullSecrets:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          containers:
+            - name: collector
+              image: {{ $image }}
+              imagePullPolicy: {{ .Values.image.pullPolicy }}
+              args: ["--job", {{ .Values.collector.macroIndicators.job | quote }}]
+              envFrom:
+                - configMapRef:
+                    name: {{ $fullName }}-config
+                - secretRef:
+                    name: {{ $fullName }}-secrets
+              resources:
+                {{- toYaml .Values.collector.macroIndicators.resources | nindent 16 }}
+---
+{{/* ── monthly_revenue ── */}}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ $fullName }}-collect-monthly-revenue
+  labels:
+    {{- $labels | nindent 4 }}
+    app.kubernetes.io/component: collector
+spec:
+  schedule: {{ .Values.collector.monthlyRevenue.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        metadata:
+          labels:
+            {{- include "twstock.selectorLabels" . | nindent 12 }}
+            app.kubernetes.io/component: collector
+        spec:
+          restartPolicy: OnFailure
+          {{- with .Values.global.imagePullSecrets }}
+          imagePullSecrets:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          containers:
+            - name: collector
+              image: {{ $image }}
+              imagePullPolicy: {{ .Values.image.pullPolicy }}
+              args: ["--job", {{ .Values.collector.monthlyRevenue.job | quote }}]
+              envFrom:
+                - configMapRef:
+                    name: {{ $fullName }}-config
+                - secretRef:
+                    name: {{ $fullName }}-secrets
+              resources:
+                {{- toYaml .Values.collector.monthlyRevenue.resources | nindent 16 }}
+---
+{{/* ── quarterly_financials ── */}}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ $fullName }}-collect-quarterly-financials
+  labels:
+    {{- $labels | nindent 4 }}
+    app.kubernetes.io/component: collector
+spec:
+  schedule: {{ .Values.collector.quarterlyFinancials.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        metadata:
+          labels:
+            {{- include "twstock.selectorLabels" . | nindent 12 }}
+            app.kubernetes.io/component: collector
+        spec:
+          restartPolicy: OnFailure
+          {{- with .Values.global.imagePullSecrets }}
+          imagePullSecrets:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          containers:
+            - name: collector
+              image: {{ $image }}
+              imagePullPolicy: {{ .Values.image.pullPolicy }}
+              args: ["--job", {{ .Values.collector.quarterlyFinancials.job | quote }}]
+              envFrom:
+                - configMapRef:
+                    name: {{ $fullName }}-config
+                - secretRef:
+                    name: {{ $fullName }}-secrets
+              resources:
+                {{- toYaml .Values.collector.quarterlyFinancials.resources | nindent 16 }}

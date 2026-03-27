@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "twstock.fullname" . }}-config
+  labels:
+    {{- include "twstock.labels" . | nindent 4 }}
+data:
+  TWSTOCK_DATABASE_URL: {{ include "twstock.databaseUrl" . | quote }}
+  TWSTOCK_REDIS_URL: {{ include "twstock.redisUrl" . | quote }}
+  TWSTOCK_LOG_LEVEL: "INFO"
+  TWSTOCK_REQUEST_DELAY: "1.0"
+  TWSTOCK_DCF_TERMINAL_GROWTH_RATE: "0.025"
+  TWSTOCK_DCF_MARGIN_OF_SAFETY: "0.80"
+  TWSTOCK_MF_REVENUE_YOY_MIN: "15.0"
+  TWSTOCK_MF_TRUST_NET_RATIO_MIN: "0.5"
+  TWSTOCK_MF_PE_STD_THRESHOLD: "1.0"
+  TWSTOCK_MF_VOLUME_MULTIPLIER: "2.0"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "twstock.fullname" . }}-db-init
+  labels:
+    {{- include "twstock.labels" . | nindent 4 }}
+data:
+  init.sql: |
+    {{ .Files.Get "../../db/init.sql" | nindent 4 }}

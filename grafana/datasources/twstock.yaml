@@ -1,0 +1,19 @@
+apiVersion: 1
+
+datasources:
+  - name: TWStock TimescaleDB
+    uid: twstock-timescaledb
+    type: postgres
+    url: twstock-postgresql.twstock.svc.cluster.local:5432
+    database: twstock
+    user: twstock
+    secureJsonData:
+      password: twstock-secret   # 與 helm/twstock/values.yaml postgresql.auth.password 一致
+    jsonData:
+      sslmode: disable
+      maxOpenConns: 10
+      maxIdleConns: 5
+      connMaxLifetime: 14400
+      postgresVersion: 1600      # PostgreSQL 16
+      timescaledb: true          # 啟用 TimescaleDB 專用函數 (time_bucket 等)
+    editable: true

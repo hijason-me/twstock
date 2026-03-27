@@ -9,12 +9,22 @@ global:
 
 # ============================================================
 # Image configuration
+# Shared registry, tag, and pull policy.
+# Each service has its own repository under images.*
+# CI pushes to: ghcr.io/hijason-me/twstock-{api,collector,analyzer}
 # ============================================================
 image:
-  registry: ghcr.io
-  repository: your-org/twstock
-  tag: "1.0.0"
+  registry:   ghcr.io
+  tag:        "latest"   # override per deploy, e.g. --set image.tag=sha-abc1234
   pullPolicy: IfNotPresent
+
+images:
+  api:
+    repository: hijason-me/twstock-api
+  collector:
+    repository: hijason-me/twstock-collector
+  analyzer:
+    repository: hijason-me/twstock-analyzer
 
 # ============================================================
 # Collector CronJobs

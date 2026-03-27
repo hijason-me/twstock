@@ -6,3 +6,5 @@
 !/Documents/Claude/
 /Documents/Claude/*
 !/Documents/Claude/TWStock/
+# Exclude Claude Code local config from version control
+/Documents/Claude/TWStock/.claude/

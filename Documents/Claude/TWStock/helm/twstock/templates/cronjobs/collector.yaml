@@ -1,5 +1,5 @@
 {{- $fullName := include "twstock.fullname" . }}
-{{- $image    := include "twstock.image" . }}
+{{- $image    := include "twstock.collectorImage" . }}
 {{- $labels   := include "twstock.labels" . }}
 
 {{/* ── daily_prices ── */}}

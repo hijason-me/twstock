@@ -41,11 +41,22 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
 {{/*
-Image reference helper — supports global registry override
+Per-service image reference helpers — support global registry override.
+CI publishes to: ghcr.io/hijason-me/twstock-{api,collector,analyzer}
 */}}
-{{- define "twstock.image" -}}
+{{- define "twstock.apiImage" -}}
 {{- $registry := .Values.global.imageRegistry | default .Values.image.registry -}}
-{{- printf "%s/%s:%s" $registry .Values.image.repository .Values.image.tag -}}
+{{- printf "%s/%s:%s" $registry .Values.images.api.repository .Values.image.tag -}}
+{{- end }}
+
+{{- define "twstock.collectorImage" -}}
+{{- $registry := .Values.global.imageRegistry | default .Values.image.registry -}}
+{{- printf "%s/%s:%s" $registry .Values.images.collector.repository .Values.image.tag -}}
+{{- end }}
+
+{{- define "twstock.analyzerImage" -}}
+{{- $registry := .Values.global.imageRegistry | default .Values.image.registry -}}
+{{- printf "%s/%s:%s" $registry .Values.images.analyzer.repository .Values.image.tag -}}
 {{- end }}
 
 {{/*

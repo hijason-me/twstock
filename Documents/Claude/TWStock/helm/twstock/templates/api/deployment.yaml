@@ -25,7 +25,7 @@ spec:
       {{- end }}
       containers:
         - name: api
-          image: {{ include "twstock.image" . }}
+          image: {{ include "twstock.apiImage" . }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           command: ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
           ports:

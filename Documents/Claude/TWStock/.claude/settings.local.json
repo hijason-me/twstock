@@ -8,7 +8,9 @@
       "Bash(git -C \"C:/Users/Jason\" commit -m \"chore: add .gitignore to scope repo to TWStock project:*)",
       "Bash(git -C \"C:/Users/Jason\" push twstock main)",
       "Bash(git -C \"C:/Users/Jason\" checkout -b feat/initial-system-design)",
-      "Bash(git -C \"C:/Users/Jason\" add \"Documents/Claude/TWStock/\")"
+      "Bash(git -C \"C:/Users/Jason\" add \"Documents/Claude/TWStock/\")",
+      "Bash(git -C:*)",
+      "Bash(gh pr:*)"
     ]
   }
 }

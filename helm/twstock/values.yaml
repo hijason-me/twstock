@@ -15,7 +15,7 @@ global:
 # ============================================================
 image:
   registry:   ghcr.io
-  tag: "sha-d430518"
+  tag: "sha-06b0999"
   pullPolicy: IfNotPresent
 
 images:

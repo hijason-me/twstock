@@ -15,7 +15,7 @@ global:
 # ============================================================
 image:
   registry:   ghcr.io
-  tag:        "sha-0000000"   # managed by CI — do not edit manually
+  tag: "sha-c458d9e"
   pullPolicy: IfNotPresent
 
 images:

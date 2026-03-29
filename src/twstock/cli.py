@@ -284,6 +284,38 @@ async def job_quarterly_financials(source: str | None = None, backfill: str | No
     logger.info("quarterly_financials[%s] done: %d records", src, len(records))
 
 
+async def job_backfill_institutional(backfill: str | None = None, backfill_end: str | None = None) -> None:
+    """
+    用 FinMind 回補歷史三大法人買賣超 + 融資融券。
+    預設起始日：2022-01-01
+    """
+    col = _require_finmind()
+    if col is None:
+        return
+
+    limit   = settings.finmind_tickers_limit or None
+    tickers = await _get_tickers(limit=limit)
+    start   = backfill or "2022-01-01"
+    logger.info("backfill_institutional: %d tickers from %s", len(tickers), start)
+
+    flows  = await col.fetch_institutional_flows(tickers, start_date=start)
+    margin = await col.fetch_margin_trading(tickers, start_date=start)
+
+    # 過濾只保留 stocks 表中已存在的 ticker
+    async with AsyncSessionLocal() as s:
+        result = await s.execute(text("SELECT ticker FROM stocks"))
+        valid  = {r[0] for r in result.fetchall()}
+
+    flows  = [r for r in flows  if r["ticker"] in valid]
+    margin = [r for r in margin if r["ticker"] in valid]
+
+    async with AsyncSessionLocal() as s:
+        await _upsert(s, SQL_FLOWS,  flows)
+        await _upsert(s, SQL_MARGIN, margin)
+
+    logger.info("backfill_institutional done: %d flows, %d margin", len(flows), len(margin))
+
+
 async def job_backfill_prices(backfill: str | None = None, backfill_end: str | None = None) -> None:
     """
     用 yfinance 回補歷史日 OHLCV。
@@ -411,13 +443,14 @@ async def job_weekly_major_holders(source: str | None = None, backfill: str | No
 
 
 JOBS = {
-    "daily_prices":         job_daily_prices,
-    "daily_institutional":  job_daily_institutional,
-    "macro_indicators":     job_macro_indicators,
-    "monthly_revenue":      job_monthly_revenue,
-    "quarterly_financials": job_quarterly_financials,
-    "weekly_major_holders": job_weekly_major_holders,
-    "backfill_prices":      job_backfill_prices,
+    "daily_prices":           job_daily_prices,
+    "daily_institutional":    job_daily_institutional,
+    "macro_indicators":       job_macro_indicators,
+    "monthly_revenue":        job_monthly_revenue,
+    "quarterly_financials":   job_quarterly_financials,
+    "weekly_major_holders":   job_weekly_major_holders,
+    "backfill_prices":        job_backfill_prices,
+    "backfill_institutional": job_backfill_institutional,
 }
 
 
@@ -426,7 +459,8 @@ JOBS = {
 # ─────────────────────────────────────────────────────────────
 
 _SOURCE_JOBS    = {"monthly_revenue", "quarterly_financials", "weekly_major_holders"}
-_BACKFILL_JOBS  = {"monthly_revenue", "quarterly_financials", "weekly_major_holders", "backfill_prices"}
+_BACKFILL_JOBS  = {"monthly_revenue", "quarterly_financials", "weekly_major_holders",
+                   "backfill_prices", "backfill_institutional"}
 
 
 def main() -> None:
@@ -471,7 +505,7 @@ def main() -> None:
     logger.info("Starting job: %s (source=%s, backfill=%s)", args.job, args.source, args.backfill)
 
     job_fn = JOBS[args.job]
-    if args.job == "backfill_prices":
+    if args.job in ("backfill_prices", "backfill_institutional"):
         asyncio.run(job_fn(backfill=args.backfill, backfill_end=args.backfill_end))
     elif args.job in _SOURCE_JOBS:
         asyncio.run(job_fn(source=args.source, backfill=args.backfill, backfill_end=args.backfill_end))

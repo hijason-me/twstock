@@ -18,6 +18,19 @@ _MAJOR_TIERS  = ["1,000,001", "1000001", "over 1,000,000"]
 # 散戶：持股 <= 10,000 股 (10 張以下)
 _RETAIL_TIERS = ["1 to 999", "1,000 to 5,000", "5,001 to 10,000"]
 
+# FinMind 財報日期（季末日）→ DB year_quarter 格式（2022-Q1）
+_MONTH_TO_Q = {3: 1, 6: 2, 9: 3, 12: 4}
+
+
+def _to_year_quarter(date_str: str) -> str:
+    """Convert '2022-03-31' → '2022-Q1' for CHAR(7) DB column."""
+    try:
+        month = int(date_str[5:7])
+        q = _MONTH_TO_Q.get(month, (month - 1) // 3 + 1)
+        return f"{date_str[:4]}-Q{q}"
+    except Exception:
+        return date_str[:7]  # fallback
+
 
 class FinMindCollector:
     def __init__(self, api_token: str = "", request_delay: float = 10.0):
@@ -99,7 +112,7 @@ class FinMindCollector:
                     for entry in pivot.values():
                         rev = entry.get("revenue", 0)
                         records.append({
-                            "year_quarter":        entry["year_quarter"],
+                            "year_quarter":        _to_year_quarter(entry["year_quarter"]),
                             "ticker":              entry["ticker"],
                             "gross_profit_margin": (entry.get("gross_profit", 0) / rev * 100) if rev else None,
                             "operating_margin":    (entry.get("operating_income", 0) / rev * 100) if rev else None,
@@ -188,4 +201,92 @@ class FinMindCollector:
                 if self._delay > 0 and i < len(tickers) - 1:
                     await asyncio.sleep(self._delay)
         logger.info("Major holders: %d records", len(records))
+        return records
+
+    # ------------------------------------------------------------------
+    # 三大法人買賣超 (歷史回補)
+    # ------------------------------------------------------------------
+    async def fetch_institutional_flows(
+        self, tickers: list[str], start_date: str = "2022-01-01"
+    ) -> list[dict]:
+        """
+        FinMind dataset: TaiwanStockInstitutionalInvestorsBuySell
+        回傳每日三大法人（外資/投信/自營）買賣超（單位：張）
+        """
+        records = []
+        async with build_client() as client:
+            for i, ticker in enumerate(tickers):
+                try:
+                    resp = await client.get(
+                        FINMIND_BASE,
+                        params=self._params("TaiwanStockInstitutionalInvestorsBuySell", ticker, start_date),
+                    )
+                    resp.raise_for_status()
+                    # Pivot by date: 每筆 row 是一個法人的買賣超
+                    date_map: dict[str, dict] = {}
+                    for row in resp.json().get("data", []):
+                        d   = row["date"]
+                        inv = str(row.get("name", ""))
+                        net = int(row.get("buy", 0) or 0) - int(row.get("sell", 0) or 0)
+                        if d not in date_map:
+                            date_map[d] = {
+                                "date":         datetime.fromisoformat(d + "T00:00:00+00:00"),
+                                "ticker":       ticker,
+                                "foreign_net":  0,
+                                "trust_net":    0,
+                                "dealer_net":   0,
+                                "total_net":    0,
+                            }
+                        if "外資" in inv or "Foreign" in inv:
+                            date_map[d]["foreign_net"] += net
+                        elif "投信" in inv or "Investment" in inv:
+                            date_map[d]["trust_net"] += net
+                        elif "自營" in inv or "Dealer" in inv:
+                            date_map[d]["dealer_net"] += net
+                    for rec in date_map.values():
+                        rec["total_net"] = rec["foreign_net"] + rec["trust_net"] + rec["dealer_net"]
+                    records.extend(date_map.values())
+                except Exception as e:
+                    logger.warning("FinMind institutional_flows %s: %s", ticker, e)
+                if i % 10 == 9:
+                    logger.info("institutional_flows progress: %d/%d tickers, %d records", i + 1, len(tickers), len(records))
+                if self._delay > 0 and i < len(tickers) - 1:
+                    await asyncio.sleep(self._delay)
+        logger.info("Institutional flows: %d records", len(records))
+        return records
+
+    # ------------------------------------------------------------------
+    # 融資融券餘額 (歷史回補)
+    # ------------------------------------------------------------------
+    async def fetch_margin_trading(
+        self, tickers: list[str], start_date: str = "2022-01-01"
+    ) -> list[dict]:
+        """
+        FinMind dataset: TaiwanStockMarginPurchaseShortSale
+        回傳每日融資餘額 / 融券餘額（單位：張）
+        """
+        records = []
+        async with build_client() as client:
+            for i, ticker in enumerate(tickers):
+                try:
+                    resp = await client.get(
+                        FINMIND_BASE,
+                        params=self._params("TaiwanStockMarginPurchaseShortSale", ticker, start_date),
+                    )
+                    resp.raise_for_status()
+                    for row in resp.json().get("data", []):
+                        d = row["date"]
+                        records.append({
+                            "date":           datetime.fromisoformat(d + "T00:00:00+00:00"),
+                            "ticker":         ticker,
+                            "margin_balance": int(row.get("MarginPurchaseTodayBalance", 0) or 0),
+                            "short_balance":  int(row.get("ShortSaleTodayBalance", 0) or 0),
+                        })
+                except Exception as e:
+                    logger.warning("FinMind margin_trading %s: %s", ticker, e)
+                if i % 10 == 9:
+                    logger.info("margin_trading progress: %d/%d tickers, %d records", i + 1, len(tickers), len(records))
+                if self._delay > 0 and i < len(tickers) - 1:
+                    await asyncio.sleep(self._delay)
+        logger.info("Margin trading: %d records", len(records))
         return records

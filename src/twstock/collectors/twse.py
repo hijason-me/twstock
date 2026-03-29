@@ -42,20 +42,29 @@ class TWSECollector:
     # 上市股票清單
     # ------------------------------------------------------------------
     async def fetch_listed_stocks(self) -> list[dict]:
+        # 主清單：代號 + 名稱（TWTB4U 不含產業別）
         resp = await self._client.get(f"{OPENAPI}/exchangeReport/TWTB4U")
         resp.raise_for_status()
-        result = []
+        stocks: dict[str, dict] = {}
         for r in resp.json():
-            # TWSE OpenAPI 現以英文欄位回傳: Code, Name
             ticker = r.get("Code", r.get("公司代號", "")).strip()
             name   = r.get("Name", r.get("公司簡稱", "")).strip()
             if ticker and name:
-                result.append({
-                    "ticker":   ticker,
-                    "name":     name,
-                    "market":   "TWSE",
-                    "industry": r.get("Industry", r.get("產業別", "")),
-                })
+                stocks[ticker] = {"ticker": ticker, "name": name, "market": "TWSE", "industry": ""}
+
+        # 產業別：t187ap03_L 含 CFICode / 產業別
+        try:
+            resp2 = await self._client.get(f"{OPENAPI}/opendata/t187ap03_L")
+            resp2.raise_for_status()
+            for r in resp2.json():
+                ticker = r.get("公司代號", r.get("SecuritiesCompanyCode", "")).strip()
+                ind    = r.get("產業別", r.get("IndustryType", r.get("TypeOfBusiness", ""))).strip()
+                if ticker in stocks and ind:
+                    stocks[ticker]["industry"] = ind
+        except Exception as e:
+            logger.warning("fetch industry from t187ap03_L failed: %s", e)
+
+        result = list(stocks.values())
         logger.info("Fetched %d listed stocks", len(result))
         return result
 

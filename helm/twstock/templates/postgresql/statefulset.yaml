@@ -1,72 +1,72 @@
-{{- if .Values.postgresql.enabled }}
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: {{ include "twstock.fullname" . }}-postgresql
-  labels:
-    {{- include "twstock.labels" . | nindent 4 }}
-    app.kubernetes.io/component: postgresql
+  name: twstock-postgresql
+  namespace: {{ .Values.namespace }}
 spec:
-  serviceName: {{ include "twstock.fullname" . }}-postgresql
+  serviceName: twstock-postgresql
   replicas: 1
   selector:
     matchLabels:
-      {{- include "twstock.selectorLabels" . | nindent 6 }}
-      app.kubernetes.io/component: postgresql
+      app: twstock-postgresql
   template:
     metadata:
       labels:
-        {{- include "twstock.selectorLabels" . | nindent 8 }}
-        app.kubernetes.io/component: postgresql
+        app: twstock-postgresql
     spec:
       containers:
         - name: postgresql
-          image: "{{ .Values.postgresql.image.repository }}:{{ .Values.postgresql.image.tag }}"
-          imagePullPolicy: IfNotPresent
+          image: {{ .Values.postgresql.image }}
+          ports:
+            - containerPort: 5432
           env:
             - name: POSTGRES_DB
-              value: {{ .Values.postgresql.auth.database | quote }}
+              value: {{ .Values.postgresql.credentials.database | quote }}
             - name: POSTGRES_USER
-              value: {{ .Values.postgresql.auth.username | quote }}
+              value: {{ .Values.postgresql.credentials.username | quote }}
             - name: POSTGRES_PASSWORD
-              value: {{ .Values.postgresql.auth.password | quote }}
-            - name: POSTGRES_INITDB_ARGS
-              value: "--auth-host=scram-sha-256"
-          args: ["-c", "hba_file=/etc/postgresql/pg_hba.conf"]
-          ports:
-            - name: postgresql
-              containerPort: 5432
+              valueFrom:
+                secretKeyRef:
+                  name: twstock-secrets
+                  key: TWSTOCK_DB_PASSWORD
           volumeMounts:
             - name: data
               mountPath: /var/lib/postgresql/data
-            - name: pg-hba
-              mountPath: /etc/postgresql/pg_hba.conf
-              subPath: pg_hba.conf
+            - name: init-sql
+              mountPath: /docker-entrypoint-initdb.d/init.sql
+              subPath: init.sql
+          resources: {{ .Values.postgresql.resources | toYaml | nindent 12 }}
           livenessProbe:
             exec:
-              command: ["pg_isready", "-U", {{ .Values.postgresql.auth.username | quote }}]
+              command: ["pg_isready", "-U", {{ .Values.postgresql.credentials.username | quote }}]
             initialDelaySeconds: 30
             periodSeconds: 10
           readinessProbe:
             exec:
-              command: ["pg_isready", "-U", {{ .Values.postgresql.auth.username | quote }}]
+              command: ["pg_isready", "-U", {{ .Values.postgresql.credentials.username | quote }}]
             initialDelaySeconds: 5
             periodSeconds: 5
-          resources:
-            {{- toYaml .Values.postgresql.primary.resources | nindent 12 }}
       volumes:
-        - name: pg-hba
+        - name: init-sql
           configMap:
-            name: {{ include "twstock.fullname" . }}-pg-hba
+            name: twstock-init-sql
   volumeClaimTemplates:
     - metadata:
         name: data
       spec:
-        accessModes: ["ReadWriteOnce"]
-        {{- if .Values.postgresql.primary.persistence.storageClass }}
-        storageClassName: {{ .Values.postgresql.primary.persistence.storageClass | quote }}
-        {{- end }}
+        accessModes: [ReadWriteOnce]
         resources:
           requests:
-            storage: {{ .Values.postgresql.primary.persistence.size }}
-{{- end }}
+            storage: {{ .Values.postgresql.storage }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: twstock-postgresql
+  namespace: {{ .Values.namespace }}
+spec:
+  clusterIP: None
+  selector:
+    app: twstock-postgresql
+  ports:
+    - port: 5432

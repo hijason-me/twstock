@@ -2,62 +2,69 @@ apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: twstock
-  namespace: argocd          # ArgoCD control-plane namespace
-  finalizers:
-    - resources-finalizer.argocd.argoproj.io   # cascade-delete on app removal
+  namespace: argocd
   annotations:
-    # Notify on sync events (requires argocd-notifications)
-    notifications.argoproj.io/subscribe.on-sync-failed.slack: twstock-alerts
-    notifications.argoproj.io/subscribe.on-health-degraded.slack: twstock-alerts
+    # 透過 ArgoCD UI → Application → Parameters 覆蓋下方 parameters
+    # 或使用 sealed-secrets / external-secrets 注入，不要將 token 直接提交到 Git
+    argocd.argoproj.io/sync-wave: "0"
 spec:
-  project: hijason-me           # ArgoCD project; create a dedicated one for prod
+  project: default
 
-  # ── Source ──────────────────────────────────────────────────────────
   source:
-    repoURL:        https://github.com/hijason-me/twstock.git
-    targetRevision: main      # track main; change to a tag for pinned deploys
-    path:           helm/twstock
-
+    repoURL: https://github.com/hijason-me/twstock
+    targetRevision: HEAD
+    path: helm/twstock
     helm:
-      releaseName: twstock
-      # image.tag is intentionally NOT overridden here.
-      # CI writes the exact sha-xxxxxxx (or semver) back to
-      # helm/twstock/values.yaml after every successful build.
-      # ArgoCD detects that git commit and syncs automatically.
-      values: |
-        secrets:
-          finmindApiToken: ""   # inject via Sealed Secrets or ESO
-          fredApiKey:      ""
-        api:
-          ingress:
-            enabled: false      # flip to true + set host for external access
+      valueFiles:
+        - values.yaml
+      # ── 可在 ArgoCD UI → App Details → Parameters 覆蓋 ──────────────
+      parameters:
+        # ── Image ──────────────────────────────────────────────────────
+        - name: image.tag
+          value: latest
 
-  # ── Destination ─────────────────────────────────────────────────────
+        # ── Database password (建議改用 sealed-secrets) ────────────────
+        - name: postgresql.credentials.password
+          value: ""          # ← 在 ArgoCD UI 填入或透過 SealedSecret 注入
+
+        # ── External API tokens ────────────────────────────────────────
+        - name: secrets.finmindApiToken
+          value: ""          # ← FinMind token (free: finmindtrade.com)
+
+        - name: secrets.fredApiKey
+          value: ""          # ← FRED API key (free: fred.stlouisfed.org)
+
+        - name: secrets.telegramBotToken
+          value: ""          # ← Telegram bot token (Phase 2 告警)
+
+        - name: secrets.telegramChatId
+          value: ""          # ← Telegram chat ID (Phase 2 告警)
+
+        # ── Data source selection ──────────────────────────────────────
+        - name: config.revenueSource
+          value: "twse"      # twse (bulk, 免費) | finmind (per-ticker, 需 token)
+
+        - name: config.financialsSource
+          value: "twse"      # twse (bulk, 免費) | finmind (per-ticker, 需 token)
+
+        - name: config.holdersSource
+          value: "tdcc"      # tdcc (bulk, 免費) | finmind (per-ticker, 需付費方案)
+
+        # ── FinMind 限流設定 ────────────────────────────────────────────
+        - name: config.finmindTickersLimit
+          value: "200"       # free tier: 200; paid: 0 = 無限制
+
+        - name: config.finmindRequestDelay
+          value: "10.0"      # 秒/request，10s ≈ 360 req/hr (safe for free tier)
+
   destination:
-    server:    https://kubernetes.default.svc   # in-cluster; change for remote
+    server: https://kubernetes.default.svc
     namespace: twstock
 
-  # ── Sync policy ─────────────────────────────────────────────────────
   syncPolicy:
     automated:
-      prune:    true    # delete resources removed from git
-      selfHeal: true    # revert manual kubectl edits
+      prune: true
+      selfHeal: true
     syncOptions:
-      - CreateNamespace=true          # auto-create twstock namespace
-      - PrunePropagationPolicy=foreground
-      - ServerSideApply=true          # avoids "too long annotation" errors on CRDs
-    retry:
-      limit: 5
-      backoff:
-        duration:    5s
-        factor:      2
-        maxDuration: 3m
-
-  # ── Health checks ────────────────────────────────────────────────────
-  # ArgoCD understands Deployment / StatefulSet / CronJob health natively.
-  # Add ignoreDifferences if TimescaleDB StatefulSet emits noisy diffs.
-  ignoreDifferences:
-    - group:  apps
-      kind:   StatefulSet
-      jsonPointers:
-        - /spec/volumeClaimTemplates   # PVC template is immutable after creation
+      - CreateNamespace=true
+      - ServerSideApply=true

@@ -1,16 +1,16 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ include "twstock.fullname" . }}-config
-  labels:
-    {{- include "twstock.labels" . | nindent 4 }}
+  name: twstock-config
+  namespace: {{ .Values.namespace }}
 data:
-  TWSTOCK_DATABASE_URL: {{ include "twstock.databaseUrl" . | quote }}
-  TWSTOCK_LOG_LEVEL: "INFO"
-  TWSTOCK_REQUEST_DELAY: "1.0"
-  TWSTOCK_DCF_TERMINAL_GROWTH_RATE: "0.025"
-  TWSTOCK_DCF_MARGIN_OF_SAFETY: "0.80"
-  TWSTOCK_MF_REVENUE_YOY_MIN: "15.0"
-  TWSTOCK_MF_TRUST_NET_RATIO_MIN: "0.5"
-  TWSTOCK_MF_PE_STD_THRESHOLD: "1.0"
-  TWSTOCK_MF_VOLUME_MULTIPLIER: "2.0"
+  TWSTOCK_DATABASE_URL: "postgresql+asyncpg://{{ .Values.postgresql.credentials.username }}:$(TWSTOCK_DB_PASSWORD)@twstock-postgresql.{{ .Values.namespace }}.svc.cluster.local:5432/{{ .Values.postgresql.credentials.database }}"
+  TWSTOCK_REQUEST_DELAY:             {{ .Values.requestDelay | quote }}
+  TWSTOCK_LOG_LEVEL:                 {{ .Values.logLevel | quote }}
+  # Data source selection
+  TWSTOCK_REVENUE_SOURCE:            {{ .Values.config.revenueSource | quote }}
+  TWSTOCK_FINANCIALS_SOURCE:         {{ .Values.config.financialsSource | quote }}
+  TWSTOCK_HOLDERS_SOURCE:            {{ .Values.config.holdersSource | quote }}
+  # FinMind throttle
+  TWSTOCK_FINMIND_TICKERS_LIMIT:     {{ .Values.config.finmindTickersLimit | quote }}
+  TWSTOCK_FINMIND_REQUEST_DELAY:     {{ .Values.config.finmindRequestDelay | quote }}

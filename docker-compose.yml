@@ -1,24 +1,21 @@
 # ============================================================
-# TWStock — Local Development Environment
+# TWStock — Local Development
 # ============================================================
-# Usage:
-#   docker compose up -d                  # start all infra
-#   docker compose up --build collector   # rebuild & run collector
+# Quick start:
+#   docker compose up -d postgres
+#   docker compose run --rm twstock --job macro_indicators
 #
-# Environment variables override (create a .env file):
+# Create .env for API keys:
 #   TWSTOCK_FINMIND_API_TOKEN=<token>
 #   TWSTOCK_FRED_API_KEY=<key>
 
-x-common-env: &common-env
+x-env: &env
   TWSTOCK_DATABASE_URL: postgresql+asyncpg://twstock:twstock@postgres:5432/twstock
-  TWSTOCK_REDIS_URL: redis://redis:6379/0
   TWSTOCK_LOG_LEVEL: INFO
   TWSTOCK_FINMIND_API_TOKEN: ${TWSTOCK_FINMIND_API_TOKEN:-}
   TWSTOCK_FRED_API_KEY: ${TWSTOCK_FRED_API_KEY:-}
 
 services:
-
-  # ── Infrastructure ─────────────────────────────────────────
 
   postgres:
     image: timescale/timescaledb:latest-pg16
@@ -37,62 +34,17 @@ services:
       timeout: 5s
       retries: 5
 
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 3s
-      retries: 3
-
-  # ── Application services ────────────────────────────────────
-
-  collector:
-    build:
-      context: ./services/collector
-      dockerfile: Dockerfile
+  twstock:
+    build: .
     environment:
-      <<: *common-env
+      <<: *env
     depends_on:
       postgres:
         condition: service_healthy
-    # Override CMD for one-off jobs:
-    #   docker compose run collector --job daily_prices
-    command: ["--job", "daily_prices"]
-    profiles: ["jobs"]   # not started by default; run explicitly
-
-  analyzer:
-    build:
-      context: ./services/analyzer
-      dockerfile: Dockerfile
-    environment:
-      <<: *common-env
-    depends_on:
-      postgres:
-        condition: service_healthy
-    command: ["--job", "valuations"]
+    # Override per job:
+    #   docker compose run --rm twstock --job daily_prices
+    command: ["--job", "macro_indicators"]
     profiles: ["jobs"]
-
-  api:
-    build:
-      context: ./services/api
-      dockerfile: Dockerfile
-    environment:
-      <<: *common-env
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    ports:
-      - "8000:8000"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/healthz"]
-      interval: 15s
-      timeout: 5s
-      retries: 3
 
 volumes:
   postgres_data:

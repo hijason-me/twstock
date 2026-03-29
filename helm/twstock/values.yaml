@@ -4,7 +4,7 @@
 
 image:
   repository: ghcr.io/hijason-me/twstock
-  tag: "sha-8061644"
+  tag: "sha-adc5f8d"
   pullPolicy: IfNotPresent
 
 # ── PostgreSQL (TimescaleDB) ──────────────────────────────────

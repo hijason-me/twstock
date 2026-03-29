@@ -88,13 +88,18 @@ jobs:
           fi
 
       - name: Patch values.yaml
-        run: sed -i "s/^  tag:.*$/  tag: \"${{ steps.tag.outputs.value }}\"/" helm/twstock/values.yaml
+        env:
+          IMAGE_TAG: ${{ steps.tag.outputs.value }}
+        run: |
+          sed -i "s/^  tag:.*$/  tag: \"${IMAGE_TAG}\"/" helm/twstock/values.yaml
 
       - name: Commit and push
+        env:
+          IMAGE_TAG: ${{ steps.tag.outputs.value }}
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add helm/twstock/values.yaml
           git diff --cached --quiet && exit 0
-          git commit -m "chore: bump image.tag to ${{ steps.tag.outputs.value }} [skip ci]"
+          git commit -m "chore: bump image.tag to ${IMAGE_TAG} [skip ci]"
           git push

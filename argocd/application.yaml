@@ -20,8 +20,8 @@ spec:
       # ── 可在 ArgoCD UI → App Details → Parameters 覆蓋 ──────────────
       parameters:
         # ── Image ──────────────────────────────────────────────────────
-        - name: image.tag
-          value: latest
+        # image.tag 由 CI writeback 控制（values.yaml sha-xxxxxxx）
+        # 不在此覆蓋，讓 ArgoCD 跟隨 values.yaml 的 sha tag
 
         # ── Database password (建議改用 sealed-secrets) ────────────────
         - name: postgresql.credentials.password

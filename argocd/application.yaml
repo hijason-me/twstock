@@ -71,14 +71,21 @@ spec:
       # RespectIgnoreDifferences=true 讓 ArgoCD 忽略 clusterIP 等不可變欄位的 drift
       - RespectIgnoreDifferences=true
 
-  # 忽略 Kubernetes 自動填入、不可變更的欄位（避免反覆 drift）
+  # 忽略 Kubernetes 自動填入、不可變更的欄位（避免反覆 OutOfSync）
   ignoreDifferences:
+    # Service: Kubernetes 1.20+ 自動填入的多值 IP / 流量策略欄位
     - group: ""
       kind: Service
-      jsonPointers:
-        - /spec/clusterIP
-        - /spec/clusterIPs
+      jqPathExpressions:
+        - .spec.clusterIP
+        - .spec.clusterIPs
+        - .spec.ipFamilies
+        - .spec.ipFamilyPolicy
+        - .spec.internalTrafficPolicy
+    # StatefulSet: volumeClaimTemplates 建立後 K8s 補上 storageClassName / volumeMode / status
     - group: apps
       kind: StatefulSet
-      jsonPointers:
-        - /spec/volumeClaimTemplates
+      jqPathExpressions:
+        - .spec.volumeClaimTemplates[]?.spec.storageClassName
+        - .spec.volumeClaimTemplates[]?.spec.volumeMode
+        - .spec.volumeClaimTemplates[]?.status

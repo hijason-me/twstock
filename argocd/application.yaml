@@ -68,3 +68,17 @@ spec:
     syncOptions:
       - CreateNamespace=true
       - ServerSideApply=true
+      # RespectIgnoreDifferences=true 讓 ArgoCD 忽略 clusterIP 等不可變欄位的 drift
+      - RespectIgnoreDifferences=true
+
+  # 忽略 Kubernetes 自動填入、不可變更的欄位（避免反覆 drift）
+  ignoreDifferences:
+    - group: ""
+      kind: Service
+      jsonPointers:
+        - /spec/clusterIP
+        - /spec/clusterIPs
+    - group: apps
+      kind: StatefulSet
+      jsonPointers:
+        - /spec/volumeClaimTemplates

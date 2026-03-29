@@ -1,4 +1,20 @@
 {
+  "__inputs": [
+    {
+      "name": "DS_POSTGRESQL",
+      "label": "PostgreSQL / TimescaleDB",
+      "type": "datasource",
+      "pluginId": "postgres",
+      "pluginName": "PostgreSQL"
+    }
+  ],
+  "__requires": [
+    { "type": "grafana",    "id": "grafana",    "name": "Grafana",    "version": "10.0.0" },
+    { "type": "datasource", "id": "postgres",   "name": "PostgreSQL", "version": "1.0.0"  },
+    { "type": "panel",      "id": "stat",       "name": "Stat",       "version": "" },
+    { "type": "panel",      "id": "timeseries", "name": "Time series","version": "" },
+    { "type": "panel",      "id": "barchart",   "name": "Bar chart",  "version": "" }
+  ],
   "uid": "twstock-stock",
   "title": "02 - 個股觀測",
   "tags": ["twstock", "stock"],
@@ -15,7 +31,7 @@
         "name": "ticker",
         "label": "股票代號",
         "type": "query",
-        "datasource": { "type": "postgres", "uid": "timescaledb" },
+        "datasource": { "type": "postgres", "uid": "${DS_POSTGRESQL}" },
         "query": "SELECT ticker AS __value, ticker || ' ' || name AS __text FROM stocks ORDER BY ticker",
         "refresh": 1,
         "sort": 1,
@@ -27,308 +43,201 @@
   },
   "panels": [
     {
-      "id": 1,
-      "type": "stat",
+      "id": 1, "type": "stat",
       "title": "股票名稱",
       "gridPos": { "x": 0, "y": 0, "w": 8, "h": 3 },
-      "datasource": { "type": "postgres", "uid": "timescaledb" },
-      "fieldConfig": {
-        "defaults": { "color": { "mode": "fixed", "fixedColor": "text" } }
-      },
-      "options": {
-        "colorMode": "none",
-        "graphMode": "none",
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "/^name$/" }
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "datasource": { "type": "postgres", "uid": "timescaledb" },
-          "rawSql": "SELECT name, industry FROM stocks WHERE ticker = '$ticker'",
-          "format": "table",
-          "rawQuery": true
-        }
-      ]
+      "datasource": { "type": "postgres", "uid": "${DS_POSTGRESQL}" },
+      "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "text" } } },
+      "options": { "colorMode": "none", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "/^name$/" } },
+      "targets": [{
+        "refId": "A",
+        "datasource": { "type": "postgres", "uid": "${DS_POSTGRESQL}" },
+        "rawSql": "SELECT name, industry FROM stocks WHERE ticker = '$ticker'",
+        "format": "table", "rawQuery": true
+      }]
     },
     {
-      "id": 2,
-      "type": "stat",
+      "id": 2, "type": "stat",
       "title": "產業別",
       "gridPos": { "x": 8, "y": 0, "w": 8, "h": 3 },
-      "datasource": { "type": "postgres", "uid": "timescaledb" },
-      "fieldConfig": {
-        "defaults": { "color": { "mode": "fixed", "fixedColor": "text" } }
-      },
-      "options": {
-        "colorMode": "none",
-        "graphMode": "none",
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "/^industry$/" }
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "datasource": { "type": "postgres", "uid": "timescaledb" },
-          "rawSql": "SELECT name, industry FROM stocks WHERE ticker = '$ticker'",
-          "format": "table",
-          "rawQuery": true
-        }
-      ]
+      "datasource": { "type": "postgres", "uid": "${DS_POSTGRESQL}" },
+      "fieldConfig": { "defaults": { "color": { "mode": "fixed", "fixedColor": "text" } } },
+      "options": { "colorMode": "none", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "/^industry$/" } },
+      "targets": [{
+        "refId": "A",
+        "datasource": { "type": "postgres", "uid": "${DS_POSTGRESQL}" },
+        "rawSql": "SELECT name, industry FROM stocks WHERE ticker = '$ticker'",
+        "format": "table", "rawQuery": true
+      }]
     },
     {
-      "id": 3,
-      "type": "stat",
+      "id": 3, "type": "stat",
       "title": "最新收盤價 (元)",
       "gridPos": { "x": 16, "y": 0, "w": 8, "h": 3 },
-      "datasource": { "type": "postgres", "uid": "timescaledb" },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "decimals": 2,
-          "color": { "mode": "fixed", "fixedColor": "text" }
-        }
-      },
-      "options": {
-        "colorMode": "none",
-        "graphMode": "none",
-        "reduceOptions": { "calcs": ["lastNotNull"] }
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "datasource": { "type": "postgres", "uid": "timescaledb" },
-          "rawSql": "SELECT close AS \"收盤價\" FROM price_history WHERE ticker='$ticker' ORDER BY time DESC LIMIT 1",
-          "format": "table",
-          "rawQuery": true
-        }
-      ]
+      "datasource": { "type": "postgres", "uid": "${DS_POSTGRESQL}" },
+      "fieldConfig": { "defaults": { "unit": "short", "decimals": 2, "color": { "mode": "fixed", "fixedColor": "text" } } },
+      "options": { "colorMode": "none", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "targets": [{
+        "refId": "A",
+        "datasource": { "type": "postgres", "uid": "${DS_POSTGRESQL}" },
+        "rawSql": "SELECT close AS \"收盤價\" FROM price_history WHERE ticker='$ticker' ORDER BY time DESC LIMIT 1",
+        "format": "table", "rawQuery": true
+      }]
     },
     {
-      "id": 10,
-      "type": "timeseries",
+      "id": 10, "type": "timeseries",
       "title": "日收盤價 (元)",
       "gridPos": { "x": 0, "y": 3, "w": 16, "h": 9 },
-      "datasource": { "type": "postgres", "uid": "timescaledb" },
+      "datasource": { "type": "postgres", "uid": "${DS_POSTGRESQL}" },
       "fieldConfig": {
         "defaults": {
           "custom": { "lineWidth": 2, "fillOpacity": 5 },
-          "unit": "short",
-          "decimals": 2,
+          "unit": "short", "decimals": 2,
           "color": { "mode": "fixed", "fixedColor": "blue" }
         }
       },
-      "options": {
-        "tooltip": { "mode": "single" },
-        "legend": { "displayMode": "list", "placement": "bottom" }
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "datasource": { "type": "postgres", "uid": "timescaledb" },
-          "rawSql": "SELECT time AS \"time\", close AS \"收盤價 (元)\" FROM price_history WHERE ticker='$ticker' AND $__timeFilter(time) ORDER BY time",
-          "format": "time_series",
-          "rawQuery": true
-        }
-      ]
+      "options": { "tooltip": { "mode": "single" }, "legend": { "displayMode": "list", "placement": "bottom" } },
+      "targets": [{
+        "refId": "A",
+        "datasource": { "type": "postgres", "uid": "${DS_POSTGRESQL}" },
+        "rawSql": "SELECT time AS \"time\", close AS \"收盤價 (元)\" FROM price_history WHERE ticker='$ticker' AND $__timeFilter(time) ORDER BY time",
+        "format": "time_series", "rawQuery": true
+      }]
     },
     {
-      "id": 11,
-      "type": "barchart",
+      "id": 11, "type": "barchart",
       "title": "成交量 (張)",
       "gridPos": { "x": 0, "y": 12, "w": 16, "h": 6 },
-      "datasource": { "type": "postgres", "uid": "timescaledb" },
+      "datasource": { "type": "postgres", "uid": "${DS_POSTGRESQL}" },
       "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "color": { "mode": "fixed", "fixedColor": "light-blue" }
-        }
+        "defaults": { "unit": "short", "color": { "mode": "fixed", "fixedColor": "light-blue" } }
       },
-      "options": {
-        "barWidth": 0.8,
-        "groupWidth": 0.7,
-        "tooltip": { "mode": "single" },
-        "legend": { "displayMode": "list", "placement": "bottom" }
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "datasource": { "type": "postgres", "uid": "timescaledb" },
-          "rawSql": "SELECT time AS \"time\", volume AS \"成交量 (張)\" FROM price_history WHERE ticker='$ticker' AND $__timeFilter(time) ORDER BY time",
-          "format": "time_series",
-          "rawQuery": true
-        }
-      ]
+      "options": { "barWidth": 0.8, "tooltip": { "mode": "single" }, "legend": { "displayMode": "list", "placement": "bottom" } },
+      "targets": [{
+        "refId": "A",
+        "datasource": { "type": "postgres", "uid": "${DS_POSTGRESQL}" },
+        "rawSql": "SELECT time AS \"time\", volume AS \"成交量 (張)\" FROM price_history WHERE ticker='$ticker' AND $__timeFilter(time) ORDER BY time",
+        "format": "time_series", "rawQuery": true
+      }]
     },
     {
-      "id": 20,
-      "type": "stat",
+      "id": 20, "type": "stat",
       "title": "千張大戶持股比 (%)",
       "gridPos": { "x": 16, "y": 3, "w": 8, "h": 4 },
-      "datasource": { "type": "postgres", "uid": "timescaledb" },
+      "datasource": { "type": "postgres", "uid": "${DS_POSTGRESQL}" },
       "fieldConfig": {
         "defaults": {
-          "unit": "percent",
-          "decimals": 2,
+          "unit": "percent", "decimals": 2,
           "color": { "mode": "thresholds" },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "red", "value": null },
-              { "color": "yellow", "value": 40 },
-              { "color": "green", "value": 60 }
-            ]
-          }
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "red",    "value": null },
+            { "color": "yellow", "value": 40   },
+            { "color": "green",  "value": 60   }
+          ]}
         }
       },
-      "options": {
-        "colorMode": "background",
-        "graphMode": "area",
-        "reduceOptions": { "calcs": ["lastNotNull"] }
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "datasource": { "type": "postgres", "uid": "timescaledb" },
-          "rawSql": "SELECT holders_1000_ratio AS \"千張大戶持股比\" FROM major_holders WHERE ticker='$ticker' ORDER BY time DESC LIMIT 1",
-          "format": "table",
-          "rawQuery": true
-        }
-      ]
+      "options": { "colorMode": "background", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "targets": [{
+        "refId": "A",
+        "datasource": { "type": "postgres", "uid": "${DS_POSTGRESQL}" },
+        "rawSql": "SELECT holders_1000_ratio AS \"千張大戶持股比\" FROM major_holders WHERE ticker='$ticker' ORDER BY time DESC LIMIT 1",
+        "format": "table", "rawQuery": true
+      }]
     },
     {
-      "id": 21,
-      "type": "stat",
+      "id": 21, "type": "stat",
       "title": "散戶持股比 (%)",
       "gridPos": { "x": 16, "y": 7, "w": 8, "h": 4 },
-      "datasource": { "type": "postgres", "uid": "timescaledb" },
+      "datasource": { "type": "postgres", "uid": "${DS_POSTGRESQL}" },
       "fieldConfig": {
         "defaults": {
-          "unit": "percent",
-          "decimals": 2,
+          "unit": "percent", "decimals": 2,
           "color": { "mode": "thresholds" },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 30 },
-              { "color": "red", "value": 50 }
-            ]
-          }
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "green",  "value": null },
+            { "color": "yellow", "value": 30   },
+            { "color": "red",    "value": 50   }
+          ]}
         }
       },
-      "options": {
-        "colorMode": "background",
-        "graphMode": "area",
-        "reduceOptions": { "calcs": ["lastNotNull"] }
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "datasource": { "type": "postgres", "uid": "timescaledb" },
-          "rawSql": "SELECT retail_ratio AS \"散戶持股比\" FROM major_holders WHERE ticker='$ticker' ORDER BY time DESC LIMIT 1",
-          "format": "table",
-          "rawQuery": true
-        }
-      ]
+      "options": { "colorMode": "background", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "targets": [{
+        "refId": "A",
+        "datasource": { "type": "postgres", "uid": "${DS_POSTGRESQL}" },
+        "rawSql": "SELECT retail_ratio AS \"散戶持股比\" FROM major_holders WHERE ticker='$ticker' ORDER BY time DESC LIMIT 1",
+        "format": "table", "rawQuery": true
+      }]
     },
     {
-      "id": 30,
-      "type": "timeseries",
+      "id": 30, "type": "timeseries",
       "title": "三大法人買賣超 (張)",
       "gridPos": { "x": 0, "y": 18, "w": 24, "h": 8 },
-      "datasource": { "type": "postgres", "uid": "timescaledb" },
+      "datasource": { "type": "postgres", "uid": "${DS_POSTGRESQL}" },
       "fieldConfig": {
         "defaults": {
-          "custom": {
-            "lineWidth": 1,
-            "fillOpacity": 20,
-            "drawStyle": "bars",
-            "stacking": { "mode": "none" }
-          },
-          "unit": "short",
-          "decimals": 0
+          "custom": { "lineWidth": 1, "fillOpacity": 20, "drawStyle": "bars" },
+          "unit": "short", "decimals": 0
         },
         "overrides": [
-          { "matcher": { "id": "byName", "options": "外資" },   "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }] },
-          { "matcher": { "id": "byName", "options": "投信" },   "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "blue" } }] },
-          { "matcher": { "id": "byName", "options": "自營商" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "green" } }] },
-          { "matcher": { "id": "byName", "options": "合計" },   "properties": [{ "id": "custom", "value": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 0 } }, { "id": "color", "value": { "mode": "fixed", "fixedColor": "yellow" } }] }
+          { "matcher": { "id": "byName", "options": "外資"   }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "red"       } }] },
+          { "matcher": { "id": "byName", "options": "投信"   }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "blue"      } }] },
+          { "matcher": { "id": "byName", "options": "自營商" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "green"     } }] },
+          { "matcher": { "id": "byName", "options": "合計"   }, "properties": [
+            { "id": "color",  "value": { "mode": "fixed", "fixedColor": "yellow" } },
+            { "id": "custom", "value": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 0 } }
+          ]}
         ]
       },
-      "options": {
-        "tooltip": { "mode": "multi" },
-        "legend": { "displayMode": "list", "placement": "bottom" }
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "datasource": { "type": "postgres", "uid": "timescaledb" },
-          "rawSql": "SELECT time AS \"time\", foreign_net AS \"外資\", trust_net AS \"投信\", dealer_net AS \"自營商\", total_net AS \"合計\" FROM institutional_flows WHERE ticker='$ticker' AND $__timeFilter(time) ORDER BY time",
-          "format": "time_series",
-          "rawQuery": true
-        }
-      ]
+      "options": { "tooltip": { "mode": "multi" }, "legend": { "displayMode": "list", "placement": "bottom" } },
+      "targets": [{
+        "refId": "A",
+        "datasource": { "type": "postgres", "uid": "${DS_POSTGRESQL}" },
+        "rawSql": "SELECT time AS \"time\", foreign_net AS \"外資\", trust_net AS \"投信\", dealer_net AS \"自營商\", total_net AS \"合計\" FROM institutional_flows WHERE ticker='$ticker' AND $__timeFilter(time) ORDER BY time",
+        "format": "time_series", "rawQuery": true
+      }]
     },
     {
-      "id": 40,
-      "type": "timeseries",
+      "id": 40, "type": "timeseries",
       "title": "千張大戶 vs 散戶持股比 (%)",
       "gridPos": { "x": 0, "y": 26, "w": 12, "h": 8 },
-      "datasource": { "type": "postgres", "uid": "timescaledb" },
+      "datasource": { "type": "postgres", "uid": "${DS_POSTGRESQL}" },
       "fieldConfig": {
-        "defaults": {
-          "custom": { "lineWidth": 2, "fillOpacity": 10 },
-          "unit": "percent",
-          "decimals": 2
-        },
+        "defaults": { "custom": { "lineWidth": 2, "fillOpacity": 10 }, "unit": "percent", "decimals": 2 },
         "overrides": [
           { "matcher": { "id": "byName", "options": "千張大戶 (%)" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "dark-green" } }] },
-          { "matcher": { "id": "byName", "options": "散戶 (%)" },     "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "orange" } }] }
+          { "matcher": { "id": "byName", "options": "散戶 (%)"     }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "orange"     } }] }
         ]
       },
-      "options": {
-        "tooltip": { "mode": "multi" },
-        "legend": { "displayMode": "list", "placement": "bottom" }
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "datasource": { "type": "postgres", "uid": "timescaledb" },
-          "rawSql": "SELECT time AS \"time\", holders_1000_ratio AS \"千張大戶 (%)\", retail_ratio AS \"散戶 (%)\" FROM major_holders WHERE ticker='$ticker' AND $__timeFilter(time) ORDER BY time",
-          "format": "time_series",
-          "rawQuery": true
-        }
-      ]
+      "options": { "tooltip": { "mode": "multi" }, "legend": { "displayMode": "list", "placement": "bottom" } },
+      "targets": [{
+        "refId": "A",
+        "datasource": { "type": "postgres", "uid": "${DS_POSTGRESQL}" },
+        "rawSql": "SELECT time AS \"time\", holders_1000_ratio AS \"千張大戶 (%)\", retail_ratio AS \"散戶 (%)\" FROM major_holders WHERE ticker='$ticker' AND $__timeFilter(time) ORDER BY time",
+        "format": "time_series", "rawQuery": true
+      }]
     },
     {
-      "id": 50,
-      "type": "timeseries",
+      "id": 50, "type": "timeseries",
       "title": "融資餘額 (千元) / 融券餘額 (張)",
       "gridPos": { "x": 12, "y": 26, "w": 12, "h": 8 },
-      "datasource": { "type": "postgres", "uid": "timescaledb" },
+      "datasource": { "type": "postgres", "uid": "${DS_POSTGRESQL}" },
       "fieldConfig": {
-        "defaults": {
-          "custom": { "lineWidth": 2, "fillOpacity": 8 },
-          "unit": "short",
-          "decimals": 0
-        },
+        "defaults": { "custom": { "lineWidth": 2, "fillOpacity": 8 }, "unit": "short", "decimals": 0 },
         "overrides": [
-          { "matcher": { "id": "byName", "options": "融資餘額" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }] },
-          { "matcher": { "id": "byName", "options": "融券餘額" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "blue" } }, { "id": "custom", "value": { "axisPlacement": "right" } }] }
+          { "matcher": { "id": "byName", "options": "融資餘額" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "red"  } }] },
+          { "matcher": { "id": "byName", "options": "融券餘額" }, "properties": [
+            { "id": "color",  "value": { "mode": "fixed", "fixedColor": "blue" } },
+            { "id": "custom", "value": { "axisPlacement": "right" } }
+          ]}
         ]
       },
-      "options": {
-        "tooltip": { "mode": "multi" },
-        "legend": { "displayMode": "list", "placement": "bottom" }
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "datasource": { "type": "postgres", "uid": "timescaledb" },
-          "rawSql": "SELECT time AS \"time\", margin_balance AS \"融資餘額\", short_balance AS \"融券餘額\" FROM margin_trading WHERE ticker='$ticker' AND $__timeFilter(time) ORDER BY time",
-          "format": "time_series",
-          "rawQuery": true
-        }
-      ]
+      "options": { "tooltip": { "mode": "multi" }, "legend": { "displayMode": "list", "placement": "bottom" } },
+      "targets": [{
+        "refId": "A",
+        "datasource": { "type": "postgres", "uid": "${DS_POSTGRESQL}" },
+        "rawSql": "SELECT time AS \"time\", margin_balance AS \"融資餘額\", short_balance AS \"融券餘額\" FROM margin_trading WHERE ticker='$ticker' AND $__timeFilter(time) ORDER BY time",
+        "format": "time_series", "rawQuery": true
+      }]
     }
   ]
 }

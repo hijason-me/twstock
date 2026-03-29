@@ -40,10 +40,6 @@ spec:
         - name: secrets.telegramChatId
           value: ""          # ← Telegram chat ID (Phase 2 告警)
 
-        # ── Grafana ────────────────────────────────────────────────────
-        - name: grafana.adminPassword
-          value: ""          # ← Grafana 管理員密碼（在 ArgoCD UI 填入）
-
         # ── Data source selection ──────────────────────────────────────
         - name: config.revenueSource
           value: "twse"      # twse (bulk, 免費) | finmind (per-ticker, 需 token)

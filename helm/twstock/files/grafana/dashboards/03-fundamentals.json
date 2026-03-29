@@ -1,0 +1,332 @@
+{
+  "uid": "twstock-fundamentals",
+  "title": "03 - 基本面分析",
+  "tags": ["twstock", "fundamentals"],
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "1d",
+  "time": { "from": "now-2y", "to": "now" },
+  "timepicker": {},
+  "graphTooltip": 1,
+  "annotations": { "list": [] },
+  "templating": {
+    "list": [
+      {
+        "name": "ticker",
+        "label": "股票代號",
+        "type": "query",
+        "datasource": { "type": "postgres", "uid": "timescaledb" },
+        "query": "SELECT ticker AS __value, ticker || ' ' || name AS __text FROM stocks ORDER BY ticker",
+        "refresh": 1,
+        "sort": 1,
+        "multi": false,
+        "includeAll": false,
+        "current": { "text": "2330 台積電", "value": "2330" }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "最新月營收 (千元)",
+      "gridPos": { "x": 0, "y": 0, "w": 6, "h": 4 },
+      "datasource": { "type": "postgres", "uid": "timescaledb" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "color": { "mode": "fixed", "fixedColor": "text" }
+        }
+      },
+      "options": {
+        "colorMode": "none",
+        "graphMode": "area",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "postgres", "uid": "timescaledb" },
+          "rawSql": "SELECT revenue AS \"月營收\" FROM monthly_revenue WHERE ticker='$ticker' ORDER BY year_month DESC LIMIT 1",
+          "format": "table",
+          "rawQuery": true
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "月營收 MoM (%)",
+      "gridPos": { "x": 6, "y": 0, "w": 6, "h": 4 },
+      "datasource": { "type": "postgres", "uid": "timescaledb" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 2,
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 0 },
+              { "color": "green", "value": 5 }
+            ]
+          }
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "postgres", "uid": "timescaledb" },
+          "rawSql": "SELECT revenue_mom AS \"月增率\" FROM monthly_revenue WHERE ticker='$ticker' ORDER BY year_month DESC LIMIT 1",
+          "format": "table",
+          "rawQuery": true
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "月營收 YoY (%)",
+      "gridPos": { "x": 12, "y": 0, "w": 6, "h": 4 },
+      "datasource": { "type": "postgres", "uid": "timescaledb" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 2,
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 0 },
+              { "color": "green", "value": 10 }
+            ]
+          }
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "postgres", "uid": "timescaledb" },
+          "rawSql": "SELECT revenue_yoy AS \"年增率\" FROM monthly_revenue WHERE ticker='$ticker' ORDER BY year_month DESC LIMIT 1",
+          "format": "table",
+          "rawQuery": true
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "最新 EPS (元)",
+      "gridPos": { "x": 18, "y": 0, "w": 6, "h": 4 },
+      "datasource": { "type": "postgres", "uid": "timescaledb" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 2,
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 0 },
+              { "color": "green", "value": 2 }
+            ]
+          }
+        }
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "postgres", "uid": "timescaledb" },
+          "rawSql": "SELECT eps AS \"EPS\" FROM financial_statements WHERE ticker='$ticker' ORDER BY year_quarter DESC LIMIT 1",
+          "format": "table",
+          "rawQuery": true
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "type": "barchart",
+      "title": "月營收趨勢 (千元) — 近 24 個月",
+      "gridPos": { "x": 0, "y": 4, "w": 24, "h": 9 },
+      "datasource": { "type": "postgres", "uid": "timescaledb" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "color": { "mode": "fixed", "fixedColor": "blue" }
+        }
+      },
+      "options": {
+        "barWidth": 0.8,
+        "groupWidth": 0.7,
+        "xField": "time",
+        "tooltip": { "mode": "single" },
+        "legend": { "displayMode": "list", "placement": "bottom" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "postgres", "uid": "timescaledb" },
+          "rawSql": "SELECT TO_DATE(year_month || '-01', 'YYYY-MM-DD') AS \"time\", revenue AS \"月營收 (千元)\" FROM monthly_revenue WHERE ticker='$ticker' AND year_month >= TO_CHAR(NOW() - INTERVAL '2 years', 'YYYY-MM') ORDER BY year_month",
+          "format": "time_series",
+          "rawQuery": true
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "type": "timeseries",
+      "title": "月營收年增率 YoY (%)",
+      "gridPos": { "x": 0, "y": 13, "w": 24, "h": 7 },
+      "datasource": { "type": "postgres", "uid": "timescaledb" },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 15,
+            "drawStyle": "bars"
+          },
+          "unit": "percent",
+          "decimals": 2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 0 }
+            ]
+          },
+          "color": { "mode": "thresholds" }
+        }
+      },
+      "options": {
+        "tooltip": { "mode": "single" },
+        "legend": { "displayMode": "list", "placement": "bottom" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "postgres", "uid": "timescaledb" },
+          "rawSql": "SELECT TO_DATE(year_month || '-01', 'YYYY-MM-DD') AS \"time\", revenue_yoy AS \"年增率 (%)\" FROM monthly_revenue WHERE ticker='$ticker' AND year_month >= TO_CHAR(NOW() - INTERVAL '2 years', 'YYYY-MM') ORDER BY year_month",
+          "format": "time_series",
+          "rawQuery": true
+        }
+      ]
+    },
+    {
+      "id": 20,
+      "type": "timeseries",
+      "title": "獲利三率 (%) — 毛利率 / 營益率 / 淨利率",
+      "gridPos": { "x": 0, "y": 20, "w": 16, "h": 9 },
+      "datasource": { "type": "postgres", "uid": "timescaledb" },
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "lineWidth": 2, "fillOpacity": 5 },
+          "unit": "percent",
+          "decimals": 2
+        },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "毛利率 (%)" },  "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "green" } }] },
+          { "matcher": { "id": "byName", "options": "營益率 (%)" },  "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "blue" } }] },
+          { "matcher": { "id": "byName", "options": "淨利率 (%)" },  "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "orange" } }] }
+        ]
+      },
+      "options": {
+        "tooltip": { "mode": "multi" },
+        "legend": { "displayMode": "list", "placement": "bottom" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "postgres", "uid": "timescaledb" },
+          "rawSql": "SELECT TO_DATE(LEFT(year_quarter,4) || '-' || LPAD(((RIGHT(year_quarter,1)::int*3-2))::text,2,'0') || '-01', 'YYYY-MM-DD') AS \"time\", gross_profit_margin AS \"毛利率 (%)\", operating_margin AS \"營益率 (%)\", net_profit_margin AS \"淨利率 (%)\" FROM financial_statements WHERE ticker='$ticker' ORDER BY year_quarter",
+          "format": "time_series",
+          "rawQuery": true
+        }
+      ]
+    },
+    {
+      "id": 21,
+      "type": "barchart",
+      "title": "季 EPS (元)",
+      "gridPos": { "x": 16, "y": 20, "w": 8, "h": 9 },
+      "datasource": { "type": "postgres", "uid": "timescaledb" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 0 }
+            ]
+          },
+          "color": { "mode": "thresholds" }
+        }
+      },
+      "options": {
+        "barWidth": 0.7,
+        "groupWidth": 0.7,
+        "xField": "time",
+        "tooltip": { "mode": "single" },
+        "legend": { "displayMode": "list", "placement": "bottom" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "postgres", "uid": "timescaledb" },
+          "rawSql": "SELECT TO_DATE(LEFT(year_quarter,4) || '-' || LPAD(((RIGHT(year_quarter,1)::int*3-2))::text,2,'0') || '-01', 'YYYY-MM-DD') AS \"time\", eps AS \"EPS (元)\" FROM financial_statements WHERE ticker='$ticker' ORDER BY year_quarter DESC LIMIT 12",
+          "format": "time_series",
+          "rawQuery": true
+        }
+      ]
+    },
+    {
+      "id": 30,
+      "type": "table",
+      "title": "近 8 季財務資料",
+      "gridPos": { "x": 0, "y": 29, "w": 24, "h": 8 },
+      "datasource": { "type": "postgres", "uid": "timescaledb" },
+      "fieldConfig": {
+        "defaults": { "decimals": 2 },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "毛利率" }, "properties": [{ "id": "unit", "value": "percent" }] },
+          { "matcher": { "id": "byName", "options": "營益率" }, "properties": [{ "id": "unit", "value": "percent" }] },
+          { "matcher": { "id": "byName", "options": "淨利率" }, "properties": [{ "id": "unit", "value": "percent" }] }
+        ]
+      },
+      "options": {
+        "sortBy": [{ "displayName": "季別", "desc": true }],
+        "footer": { "show": false }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "postgres", "uid": "timescaledb" },
+          "rawSql": "SELECT year_quarter AS \"季別\", eps AS \"EPS\", gross_profit_margin AS \"毛利率\", operating_margin AS \"營益率\", net_profit_margin AS \"淨利率\" FROM financial_statements WHERE ticker='$ticker' ORDER BY year_quarter DESC LIMIT 8",
+          "format": "table",
+          "rawQuery": true
+        }
+      ]
+    }
+  ]
+}

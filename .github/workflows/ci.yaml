@@ -22,6 +22,7 @@ jobs:
           python-version: "3.11"
       - run: pip install uv
       - run: uv pip install --system -e .
+      - run: uv pip install --system pytest pytest-asyncio pytest-httpx
       - run: python -m pytest tests/ -v --tb=short
         continue-on-error: true   # non-blocking until tests are written
 

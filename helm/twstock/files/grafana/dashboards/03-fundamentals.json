@@ -10,7 +10,7 @@
   ],
   "__requires": [
     { "type": "grafana",    "id": "grafana",    "name": "Grafana",    "version": "10.0.0" },
-    { "type": "datasource", "id": "postgres",   "name": "PostgreSQL", "version": "1.0.0"  },
+    { "type": "datasource", "id": "postgres",   "name": "PostgreSQL", "version": "1.0.0" },
     { "type": "panel",      "id": "stat",       "name": "Stat",       "version": "" },
     { "type": "panel",      "id": "timeseries", "name": "Time series","version": "" },
     { "type": "panel",      "id": "barchart",   "name": "Bar chart",  "version": "" },
@@ -19,7 +19,7 @@
   "uid": "twstock-fundamentals",
   "title": "03 - 基本面分析",
   "tags": ["twstock", "fundamentals"],
-  "schemaVersion": 39,
+  "schemaVersion": 40,
   "version": 1,
   "refresh": "1d",
   "time": { "from": "now-2y", "to": "now" },
@@ -34,10 +34,14 @@
         "type": "query",
         "datasource": { "type": "postgres", "uid": "${DS_POSTGRESQL}" },
         "query": "SELECT ticker AS __value, ticker || ' ' || name AS __text FROM stocks ORDER BY ticker",
+        "definition": "SELECT ticker AS __value, ticker || ' ' || name AS __text FROM stocks ORDER BY ticker",
         "refresh": 1,
         "sort": 1,
         "multi": false,
         "includeAll": false,
+        "hide": 0,
+        "regex": "",
+        "options": [],
         "current": { "text": "2330 台積電", "value": "2330" }
       }
     ]
@@ -48,13 +52,16 @@
       "title": "最新月營收 (千元)",
       "gridPos": { "x": 0, "y": 0, "w": 6, "h": 4 },
       "datasource": { "type": "postgres", "uid": "${DS_POSTGRESQL}" },
-      "fieldConfig": { "defaults": { "unit": "short", "decimals": 0, "color": { "mode": "fixed", "fixedColor": "text" } } },
+      "fieldConfig": { "defaults": { "unit": "short", "decimals": 0 } },
       "options": { "colorMode": "none", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } },
       "targets": [{
         "refId": "A",
         "datasource": { "type": "postgres", "uid": "${DS_POSTGRESQL}" },
+        "editorMode": "code",
+        "rawQuery": true,
         "rawSql": "SELECT revenue AS \"月營收\" FROM monthly_revenue WHERE ticker='$ticker' ORDER BY year_month DESC LIMIT 1",
-        "format": "table", "rawQuery": true
+        "format": "table",
+        "sql": { "columns": [{ "parameters": [], "type": "function" }], "groupBy": [{ "property": { "type": "string" }, "type": "groupBy" }], "limit": 50 }
       }]
     },
     {
@@ -77,8 +84,11 @@
       "targets": [{
         "refId": "A",
         "datasource": { "type": "postgres", "uid": "${DS_POSTGRESQL}" },
+        "editorMode": "code",
+        "rawQuery": true,
         "rawSql": "SELECT revenue_mom AS \"月增率\" FROM monthly_revenue WHERE ticker='$ticker' ORDER BY year_month DESC LIMIT 1",
-        "format": "table", "rawQuery": true
+        "format": "table",
+        "sql": { "columns": [{ "parameters": [], "type": "function" }], "groupBy": [{ "property": { "type": "string" }, "type": "groupBy" }], "limit": 50 }
       }]
     },
     {
@@ -101,8 +111,11 @@
       "targets": [{
         "refId": "A",
         "datasource": { "type": "postgres", "uid": "${DS_POSTGRESQL}" },
+        "editorMode": "code",
+        "rawQuery": true,
         "rawSql": "SELECT revenue_yoy AS \"年增率\" FROM monthly_revenue WHERE ticker='$ticker' ORDER BY year_month DESC LIMIT 1",
-        "format": "table", "rawQuery": true
+        "format": "table",
+        "sql": { "columns": [{ "parameters": [], "type": "function" }], "groupBy": [{ "property": { "type": "string" }, "type": "groupBy" }], "limit": 50 }
       }]
     },
     {
@@ -125,8 +138,11 @@
       "targets": [{
         "refId": "A",
         "datasource": { "type": "postgres", "uid": "${DS_POSTGRESQL}" },
+        "editorMode": "code",
+        "rawQuery": true,
         "rawSql": "SELECT eps AS \"EPS\" FROM financial_statements WHERE ticker='$ticker' ORDER BY year_quarter DESC LIMIT 1",
-        "format": "table", "rawQuery": true
+        "format": "table",
+        "sql": { "columns": [{ "parameters": [], "type": "function" }], "groupBy": [{ "property": { "type": "string" }, "type": "groupBy" }], "limit": 50 }
       }]
     },
     {
@@ -141,8 +157,11 @@
       "targets": [{
         "refId": "A",
         "datasource": { "type": "postgres", "uid": "${DS_POSTGRESQL}" },
+        "editorMode": "code",
+        "rawQuery": true,
         "rawSql": "SELECT TO_DATE(year_month || '-01', 'YYYY-MM-DD') AS \"time\", revenue AS \"月營收 (千元)\" FROM monthly_revenue WHERE ticker='$ticker' AND year_month >= TO_CHAR(NOW() - INTERVAL '2 years', 'YYYY-MM') ORDER BY year_month",
-        "format": "time_series", "rawQuery": true
+        "format": "time_series",
+        "sql": { "columns": [{ "parameters": [], "type": "function" }], "groupBy": [{ "property": { "type": "string" }, "type": "groupBy" }], "limit": 50 }
       }]
     },
     {
@@ -165,8 +184,11 @@
       "targets": [{
         "refId": "A",
         "datasource": { "type": "postgres", "uid": "${DS_POSTGRESQL}" },
+        "editorMode": "code",
+        "rawQuery": true,
         "rawSql": "SELECT TO_DATE(year_month || '-01', 'YYYY-MM-DD') AS \"time\", revenue_yoy AS \"年增率 (%)\" FROM monthly_revenue WHERE ticker='$ticker' AND year_month >= TO_CHAR(NOW() - INTERVAL '2 years', 'YYYY-MM') ORDER BY year_month",
-        "format": "time_series", "rawQuery": true
+        "format": "time_series",
+        "sql": { "columns": [{ "parameters": [], "type": "function" }], "groupBy": [{ "property": { "type": "string" }, "type": "groupBy" }], "limit": 50 }
       }]
     },
     {
@@ -186,8 +208,11 @@
       "targets": [{
         "refId": "A",
         "datasource": { "type": "postgres", "uid": "${DS_POSTGRESQL}" },
+        "editorMode": "code",
+        "rawQuery": true,
         "rawSql": "SELECT TO_DATE(LEFT(year_quarter,4) || '-' || LPAD(((RIGHT(year_quarter,1)::int*3-2))::text,2,'0') || '-01','YYYY-MM-DD') AS \"time\", gross_profit_margin AS \"毛利率 (%)\", operating_margin AS \"營益率 (%)\", net_profit_margin AS \"淨利率 (%)\" FROM financial_statements WHERE ticker='$ticker' ORDER BY year_quarter",
-        "format": "time_series", "rawQuery": true
+        "format": "time_series",
+        "sql": { "columns": [{ "parameters": [], "type": "function" }], "groupBy": [{ "property": { "type": "string" }, "type": "groupBy" }], "limit": 50 }
       }]
     },
     {
@@ -209,8 +234,11 @@
       "targets": [{
         "refId": "A",
         "datasource": { "type": "postgres", "uid": "${DS_POSTGRESQL}" },
+        "editorMode": "code",
+        "rawQuery": true,
         "rawSql": "SELECT TO_DATE(LEFT(year_quarter,4) || '-' || LPAD(((RIGHT(year_quarter,1)::int*3-2))::text,2,'0') || '-01','YYYY-MM-DD') AS \"time\", eps AS \"EPS (元)\" FROM financial_statements WHERE ticker='$ticker' ORDER BY year_quarter DESC LIMIT 12",
-        "format": "time_series", "rawQuery": true
+        "format": "time_series",
+        "sql": { "columns": [{ "parameters": [], "type": "function" }], "groupBy": [{ "property": { "type": "string" }, "type": "groupBy" }], "limit": 50 }
       }]
     },
     {
@@ -230,8 +258,11 @@
       "targets": [{
         "refId": "A",
         "datasource": { "type": "postgres", "uid": "${DS_POSTGRESQL}" },
+        "editorMode": "code",
+        "rawQuery": true,
         "rawSql": "SELECT year_quarter AS \"季別\", eps AS \"EPS\", gross_profit_margin AS \"毛利率\", operating_margin AS \"營益率\", net_profit_margin AS \"淨利率\" FROM financial_statements WHERE ticker='$ticker' ORDER BY year_quarter DESC LIMIT 8",
-        "format": "table", "rawQuery": true
+        "format": "table",
+        "sql": { "columns": [{ "parameters": [], "type": "function" }], "groupBy": [{ "property": { "type": "string" }, "type": "groupBy" }], "limit": 50 }
       }]
     }
   ]

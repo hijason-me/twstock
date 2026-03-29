@@ -10,7 +10,7 @@
   ],
   "__requires": [
     { "type": "grafana",    "id": "grafana",    "name": "Grafana",    "version": "10.0.0" },
-    { "type": "datasource", "id": "postgres",   "name": "PostgreSQL", "version": "1.0.0"  },
+    { "type": "datasource", "id": "postgres",   "name": "PostgreSQL", "version": "1.0.0" },
     { "type": "panel",      "id": "stat",       "name": "Stat",       "version": "" },
     { "type": "panel",      "id": "timeseries", "name": "Time series","version": "" },
     { "type": "panel",      "id": "barchart",   "name": "Bar chart",  "version": "" }
@@ -18,7 +18,7 @@
   "uid": "twstock-stock",
   "title": "02 - 個股觀測",
   "tags": ["twstock", "stock"],
-  "schemaVersion": 39,
+  "schemaVersion": 40,
   "version": 1,
   "refresh": "1h",
   "time": { "from": "now-180d", "to": "now" },
@@ -33,10 +33,14 @@
         "type": "query",
         "datasource": { "type": "postgres", "uid": "${DS_POSTGRESQL}" },
         "query": "SELECT ticker AS __value, ticker || ' ' || name AS __text FROM stocks ORDER BY ticker",
+        "definition": "SELECT ticker AS __value, ticker || ' ' || name AS __text FROM stocks ORDER BY ticker",
         "refresh": 1,
         "sort": 1,
         "multi": false,
         "includeAll": false,
+        "hide": 0,
+        "regex": "",
+        "options": [],
         "current": { "text": "2330 台積電", "value": "2330" }
       }
     ]
@@ -52,8 +56,11 @@
       "targets": [{
         "refId": "A",
         "datasource": { "type": "postgres", "uid": "${DS_POSTGRESQL}" },
+        "editorMode": "code",
+        "rawQuery": true,
         "rawSql": "SELECT name, industry FROM stocks WHERE ticker = '$ticker'",
-        "format": "table", "rawQuery": true
+        "format": "table",
+        "sql": { "columns": [{ "parameters": [], "type": "function" }], "groupBy": [{ "property": { "type": "string" }, "type": "groupBy" }], "limit": 50 }
       }]
     },
     {
@@ -66,8 +73,11 @@
       "targets": [{
         "refId": "A",
         "datasource": { "type": "postgres", "uid": "${DS_POSTGRESQL}" },
+        "editorMode": "code",
+        "rawQuery": true,
         "rawSql": "SELECT name, industry FROM stocks WHERE ticker = '$ticker'",
-        "format": "table", "rawQuery": true
+        "format": "table",
+        "sql": { "columns": [{ "parameters": [], "type": "function" }], "groupBy": [{ "property": { "type": "string" }, "type": "groupBy" }], "limit": 50 }
       }]
     },
     {
@@ -75,13 +85,16 @@
       "title": "最新收盤價 (元)",
       "gridPos": { "x": 16, "y": 0, "w": 8, "h": 3 },
       "datasource": { "type": "postgres", "uid": "${DS_POSTGRESQL}" },
-      "fieldConfig": { "defaults": { "unit": "short", "decimals": 2, "color": { "mode": "fixed", "fixedColor": "text" } } },
+      "fieldConfig": { "defaults": { "unit": "short", "decimals": 2 } },
       "options": { "colorMode": "none", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } },
       "targets": [{
         "refId": "A",
         "datasource": { "type": "postgres", "uid": "${DS_POSTGRESQL}" },
+        "editorMode": "code",
+        "rawQuery": true,
         "rawSql": "SELECT close AS \"收盤價\" FROM price_history WHERE ticker='$ticker' ORDER BY time DESC LIMIT 1",
-        "format": "table", "rawQuery": true
+        "format": "table",
+        "sql": { "columns": [{ "parameters": [], "type": "function" }], "groupBy": [{ "property": { "type": "string" }, "type": "groupBy" }], "limit": 50 }
       }]
     },
     {
@@ -100,8 +113,11 @@
       "targets": [{
         "refId": "A",
         "datasource": { "type": "postgres", "uid": "${DS_POSTGRESQL}" },
+        "editorMode": "code",
+        "rawQuery": true,
         "rawSql": "SELECT time AS \"time\", close AS \"收盤價 (元)\" FROM price_history WHERE ticker='$ticker' AND $__timeFilter(time) ORDER BY time",
-        "format": "time_series", "rawQuery": true
+        "format": "time_series",
+        "sql": { "columns": [{ "parameters": [], "type": "function" }], "groupBy": [{ "property": { "type": "string" }, "type": "groupBy" }], "limit": 50 }
       }]
     },
     {
@@ -116,8 +132,11 @@
       "targets": [{
         "refId": "A",
         "datasource": { "type": "postgres", "uid": "${DS_POSTGRESQL}" },
+        "editorMode": "code",
+        "rawQuery": true,
         "rawSql": "SELECT time AS \"time\", volume AS \"成交量 (張)\" FROM price_history WHERE ticker='$ticker' AND $__timeFilter(time) ORDER BY time",
-        "format": "time_series", "rawQuery": true
+        "format": "time_series",
+        "sql": { "columns": [{ "parameters": [], "type": "function" }], "groupBy": [{ "property": { "type": "string" }, "type": "groupBy" }], "limit": 50 }
       }]
     },
     {
@@ -140,8 +159,11 @@
       "targets": [{
         "refId": "A",
         "datasource": { "type": "postgres", "uid": "${DS_POSTGRESQL}" },
+        "editorMode": "code",
+        "rawQuery": true,
         "rawSql": "SELECT holders_1000_ratio AS \"千張大戶持股比\" FROM major_holders WHERE ticker='$ticker' ORDER BY time DESC LIMIT 1",
-        "format": "table", "rawQuery": true
+        "format": "table",
+        "sql": { "columns": [{ "parameters": [], "type": "function" }], "groupBy": [{ "property": { "type": "string" }, "type": "groupBy" }], "limit": 50 }
       }]
     },
     {
@@ -164,8 +186,11 @@
       "targets": [{
         "refId": "A",
         "datasource": { "type": "postgres", "uid": "${DS_POSTGRESQL}" },
+        "editorMode": "code",
+        "rawQuery": true,
         "rawSql": "SELECT retail_ratio AS \"散戶持股比\" FROM major_holders WHERE ticker='$ticker' ORDER BY time DESC LIMIT 1",
-        "format": "table", "rawQuery": true
+        "format": "table",
+        "sql": { "columns": [{ "parameters": [], "type": "function" }], "groupBy": [{ "property": { "type": "string" }, "type": "groupBy" }], "limit": 50 }
       }]
     },
     {
@@ -179,9 +204,9 @@
           "unit": "short", "decimals": 0
         },
         "overrides": [
-          { "matcher": { "id": "byName", "options": "外資"   }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "red"       } }] },
-          { "matcher": { "id": "byName", "options": "投信"   }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "blue"      } }] },
-          { "matcher": { "id": "byName", "options": "自營商" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "green"     } }] },
+          { "matcher": { "id": "byName", "options": "外資"   }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "red"    } }] },
+          { "matcher": { "id": "byName", "options": "投信"   }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "blue"   } }] },
+          { "matcher": { "id": "byName", "options": "自營商" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "green"  } }] },
           { "matcher": { "id": "byName", "options": "合計"   }, "properties": [
             { "id": "color",  "value": { "mode": "fixed", "fixedColor": "yellow" } },
             { "id": "custom", "value": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 0 } }
@@ -192,8 +217,11 @@
       "targets": [{
         "refId": "A",
         "datasource": { "type": "postgres", "uid": "${DS_POSTGRESQL}" },
+        "editorMode": "code",
+        "rawQuery": true,
         "rawSql": "SELECT time AS \"time\", foreign_net AS \"外資\", trust_net AS \"投信\", dealer_net AS \"自營商\", total_net AS \"合計\" FROM institutional_flows WHERE ticker='$ticker' AND $__timeFilter(time) ORDER BY time",
-        "format": "time_series", "rawQuery": true
+        "format": "time_series",
+        "sql": { "columns": [{ "parameters": [], "type": "function" }], "groupBy": [{ "property": { "type": "string" }, "type": "groupBy" }], "limit": 50 }
       }]
     },
     {
@@ -212,8 +240,11 @@
       "targets": [{
         "refId": "A",
         "datasource": { "type": "postgres", "uid": "${DS_POSTGRESQL}" },
+        "editorMode": "code",
+        "rawQuery": true,
         "rawSql": "SELECT time AS \"time\", holders_1000_ratio AS \"千張大戶 (%)\", retail_ratio AS \"散戶 (%)\" FROM major_holders WHERE ticker='$ticker' AND $__timeFilter(time) ORDER BY time",
-        "format": "time_series", "rawQuery": true
+        "format": "time_series",
+        "sql": { "columns": [{ "parameters": [], "type": "function" }], "groupBy": [{ "property": { "type": "string" }, "type": "groupBy" }], "limit": 50 }
       }]
     },
     {
@@ -235,8 +266,11 @@
       "targets": [{
         "refId": "A",
         "datasource": { "type": "postgres", "uid": "${DS_POSTGRESQL}" },
+        "editorMode": "code",
+        "rawQuery": true,
         "rawSql": "SELECT time AS \"time\", margin_balance AS \"融資餘額\", short_balance AS \"融券餘額\" FROM margin_trading WHERE ticker='$ticker' AND $__timeFilter(time) ORDER BY time",
-        "format": "time_series", "rawQuery": true
+        "format": "time_series",
+        "sql": { "columns": [{ "parameters": [], "type": "function" }], "groupBy": [{ "property": { "type": "string" }, "type": "groupBy" }], "limit": 50 }
       }]
     }
   ]

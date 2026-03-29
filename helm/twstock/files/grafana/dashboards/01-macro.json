@@ -10,14 +10,14 @@
   ],
   "__requires": [
     { "type": "grafana",    "id": "grafana",    "name": "Grafana",    "version": "10.0.0" },
-    { "type": "datasource", "id": "postgres",   "name": "PostgreSQL", "version": "1.0.0"  },
+    { "type": "datasource", "id": "postgres",   "name": "PostgreSQL", "version": "1.0.0" },
     { "type": "panel",      "id": "stat",       "name": "Stat",       "version": "" },
     { "type": "panel",      "id": "timeseries", "name": "Time series","version": "" }
   ],
   "uid": "twstock-macro",
   "title": "01 - 總經流動性",
   "tags": ["twstock", "macro"],
-  "schemaVersion": 39,
+  "schemaVersion": 40,
   "version": 1,
   "refresh": "1h",
   "time": { "from": "now-90d", "to": "now" },
@@ -46,8 +46,11 @@
       "targets": [{
         "refId": "A",
         "datasource": { "type": "postgres", "uid": "${DS_POSTGRESQL}" },
+        "editorMode": "code",
+        "rawQuery": true,
         "rawSql": "SELECT value FROM macro_indicators WHERE indicator='FED_RATE' ORDER BY time DESC LIMIT 1",
-        "format": "table", "rawQuery": true
+        "format": "table",
+        "sql": { "columns": [{ "parameters": [], "type": "function" }], "groupBy": [{ "property": { "type": "string" }, "type": "groupBy" }], "limit": 50 }
       }]
     },
     {
@@ -70,8 +73,11 @@
       "targets": [{
         "refId": "A",
         "datasource": { "type": "postgres", "uid": "${DS_POSTGRESQL}" },
+        "editorMode": "code",
+        "rawQuery": true,
         "rawSql": "SELECT value FROM macro_indicators WHERE indicator='UST_10Y' ORDER BY time DESC LIMIT 1",
-        "format": "table", "rawQuery": true
+        "format": "table",
+        "sql": { "columns": [{ "parameters": [], "type": "function" }], "groupBy": [{ "property": { "type": "string" }, "type": "groupBy" }], "limit": 50 }
       }]
     },
     {
@@ -94,8 +100,11 @@
       "targets": [{
         "refId": "A",
         "datasource": { "type": "postgres", "uid": "${DS_POSTGRESQL}" },
+        "editorMode": "code",
+        "rawQuery": true,
         "rawSql": "SELECT value FROM macro_indicators WHERE indicator='CPI_YOY' ORDER BY time DESC LIMIT 1",
-        "format": "table", "rawQuery": true
+        "format": "table",
+        "sql": { "columns": [{ "parameters": [], "type": "function" }], "groupBy": [{ "property": { "type": "string" }, "type": "groupBy" }], "limit": 50 }
       }]
     },
     {
@@ -118,8 +127,11 @@
       "targets": [{
         "refId": "A",
         "datasource": { "type": "postgres", "uid": "${DS_POSTGRESQL}" },
+        "editorMode": "code",
+        "rawQuery": true,
         "rawSql": "SELECT value FROM macro_indicators WHERE indicator='USDTWD' ORDER BY time DESC LIMIT 1",
-        "format": "table", "rawQuery": true
+        "format": "table",
+        "sql": { "columns": [{ "parameters": [], "type": "function" }], "groupBy": [{ "property": { "type": "string" }, "type": "groupBy" }], "limit": 50 }
       }]
     },
     {
@@ -142,8 +154,11 @@
       "targets": [{
         "refId": "A",
         "datasource": { "type": "postgres", "uid": "${DS_POSTGRESQL}" },
+        "editorMode": "code",
+        "rawQuery": true,
         "rawSql": "SELECT time AS \"time\", value AS \"UST 10Y (%)\" FROM macro_indicators WHERE indicator='UST_10Y' AND $__timeFilter(time) ORDER BY time",
-        "format": "time_series", "rawQuery": true
+        "format": "time_series",
+        "sql": { "columns": [{ "parameters": [], "type": "function" }], "groupBy": [{ "property": { "type": "string" }, "type": "groupBy" }], "limit": 50 }
       }]
     },
     {
@@ -162,8 +177,11 @@
       "targets": [{
         "refId": "A",
         "datasource": { "type": "postgres", "uid": "${DS_POSTGRESQL}" },
+        "editorMode": "code",
+        "rawQuery": true,
         "rawSql": "SELECT time AS \"time\", value AS \"FED Rate (%)\" FROM macro_indicators WHERE indicator='FED_RATE' AND $__timeFilter(time) ORDER BY time",
-        "format": "time_series", "rawQuery": true
+        "format": "time_series",
+        "sql": { "columns": [{ "parameters": [], "type": "function" }], "groupBy": [{ "property": { "type": "string" }, "type": "groupBy" }], "limit": 50 }
       }]
     },
     {
@@ -182,8 +200,11 @@
       "targets": [{
         "refId": "A",
         "datasource": { "type": "postgres", "uid": "${DS_POSTGRESQL}" },
+        "editorMode": "code",
+        "rawQuery": true,
         "rawSql": "SELECT time AS \"time\", value AS \"CPI Index\" FROM macro_indicators WHERE indicator='CPI_YOY' AND $__timeFilter(time) ORDER BY time",
-        "format": "time_series", "rawQuery": true
+        "format": "time_series",
+        "sql": { "columns": [{ "parameters": [], "type": "function" }], "groupBy": [{ "property": { "type": "string" }, "type": "groupBy" }], "limit": 50 }
       }]
     },
     {
@@ -202,8 +223,11 @@
       "targets": [{
         "refId": "A",
         "datasource": { "type": "postgres", "uid": "${DS_POSTGRESQL}" },
+        "editorMode": "code",
+        "rawQuery": true,
         "rawSql": "SELECT time AS \"time\", value AS \"USD/TWD\" FROM macro_indicators WHERE indicator='USDTWD' AND $__timeFilter(time) ORDER BY time",
-        "format": "time_series", "rawQuery": true
+        "format": "time_series",
+        "sql": { "columns": [{ "parameters": [], "type": "function" }], "groupBy": [{ "property": { "type": "string" }, "type": "groupBy" }], "limit": 50 }
       }]
     }
   ]

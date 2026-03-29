@@ -12,6 +12,7 @@ Available jobs:
     monthly_revenue       月營收 YoY / MoM  (FinMind)
     quarterly_financials  財報三率 + EPS    (FinMind)
     weekly_major_holders  千張大戶持股比例  (FinMind)
+    backfill_prices       yfinance 歷史股價回補 (--backfill YYYY-MM-DD)
 """
 import argparse
 import asyncio
@@ -273,6 +274,98 @@ async def job_quarterly_financials(source: str | None = None, backfill: str | No
     logger.info("quarterly_financials[%s] done: %d records", src, len(records))
 
 
+async def job_backfill_prices(backfill: str | None = None, backfill_end: str | None = None) -> None:
+    """
+    用 yfinance 回補歷史日 OHLCV。
+    預設回補 2024-01-01 到今天。
+    yfinance 代碼格式：TWSE → {ticker}.TW, TPEx → {ticker}.TWO
+    """
+    import yfinance as yf
+    import pandas as pd
+
+    start = backfill or "2024-01-01"
+    end   = backfill_end or date.today().strftime("%Y-%m-%d")
+    logger.info("backfill_prices: %s → %s", start, end)
+
+    # 讀取所有股票及市場別
+    async with AsyncSessionLocal() as s:
+        result = await s.execute(text("SELECT ticker, market FROM stocks ORDER BY ticker"))
+        rows = result.fetchall()
+
+    if not rows:
+        logger.error("stocks 表為空，請先執行 daily_prices 建立股票清單")
+        return
+
+    # 建立 yfinance ticker 對照表
+    ticker_map: dict[str, str] = {}  # yf_ticker → db_ticker
+    for db_ticker, market in rows:
+        suffix = ".TW" if market == "TWSE" else ".TWO"
+        ticker_map[f"{db_ticker}{suffix}"] = db_ticker
+
+    yf_tickers = list(ticker_map.keys())
+    logger.info("共 %d 支股票，開始下載…", len(yf_tickers))
+
+    BATCH = 200   # yfinance 每次最多同時下載的數量
+    total = 0
+
+    for i in range(0, len(yf_tickers), BATCH):
+        batch = yf_tickers[i : i + BATCH]
+        batch_no = i // BATCH + 1
+        total_batches = (len(yf_tickers) + BATCH - 1) // BATCH
+        logger.info("Batch %d/%d (%d tickers)", batch_no, total_batches, len(batch))
+
+        try:
+            df = yf.download(
+                batch, start=start, end=end,
+                auto_adjust=True, progress=False, threads=True,
+            )
+        except Exception as exc:
+            logger.error("yfinance batch %d 下載失敗: %s", batch_no, exc)
+            continue
+
+        if df.empty:
+            logger.warning("Batch %d 無資料", batch_no)
+            continue
+
+        records: list[dict] = []
+        for yf_tk in batch:
+            db_tk = ticker_map.get(yf_tk)
+            if not db_tk:
+                continue
+            try:
+                # 多 ticker → MultiIndex columns (metric, ticker)
+                # 單 ticker → 一般 columns
+                if isinstance(df.columns, pd.MultiIndex):
+                    sub = df.xs(yf_tk, level=1, axis=1)
+                else:
+                    sub = df
+                for ts, row in sub.iterrows():
+                    close = row.get("Close")
+                    if pd.isna(close):
+                        continue
+                    vol_raw = row.get("Volume", 0)
+                    records.append({
+                        "date":   ts.to_pydatetime(),
+                        "ticker": db_tk,
+                        "open":   float(row["Open"])  if not pd.isna(row.get("Open"))  else None,
+                        "high":   float(row["High"])  if not pd.isna(row.get("High"))  else None,
+                        "low":    float(row["Low"])   if not pd.isna(row.get("Low"))   else None,
+                        "close":  float(close),
+                        # yfinance 單位為股，÷1000 轉換為張
+                        "volume": int(vol_raw / 1000) if not pd.isna(vol_raw) else 0,
+                    })
+            except Exception as exc:
+                logger.debug("解析 %s 失敗: %s", yf_tk, exc)
+
+        if records:
+            async with AsyncSessionLocal() as s:
+                await _upsert(s, SQL_PRICES, records)
+            total += len(records)
+            logger.info("Batch %d 寫入 %d 筆 (累計 %d)", batch_no, len(records), total)
+
+    logger.info("backfill_prices 完成，共 %d 筆", total)
+
+
 async def job_weekly_major_holders(source: str | None = None, backfill: str | None = None, backfill_end: str | None = None) -> None:
     """
     來源選擇:
@@ -314,6 +407,7 @@ JOBS = {
     "monthly_revenue":      job_monthly_revenue,
     "quarterly_financials": job_quarterly_financials,
     "weekly_major_holders": job_weekly_major_holders,
+    "backfill_prices":      job_backfill_prices,
 }
 
 
@@ -321,7 +415,8 @@ JOBS = {
 # Entry point
 # ─────────────────────────────────────────────────────────────
 
-_SOURCE_JOBS = {"monthly_revenue", "quarterly_financials", "weekly_major_holders"}
+_SOURCE_JOBS    = {"monthly_revenue", "quarterly_financials", "weekly_major_holders"}
+_BACKFILL_JOBS  = {"monthly_revenue", "quarterly_financials", "weekly_major_holders", "backfill_prices"}
 
 
 def main() -> None:
@@ -349,7 +444,7 @@ def main() -> None:
         "--backfill",
         default=None,
         metavar="YYYY-MM[-DD]",
-        help="歷史回補起始日期 (僅 finmind 來源有效)",
+        help="歷史回補起始日期 (backfill_prices 或 finmind 來源有效)",
     )
     parser.add_argument(
         "--backfill-end",
@@ -366,7 +461,9 @@ def main() -> None:
     logger.info("Starting job: %s (source=%s, backfill=%s)", args.job, args.source, args.backfill)
 
     job_fn = JOBS[args.job]
-    if args.job in _SOURCE_JOBS:
+    if args.job == "backfill_prices":
+        asyncio.run(job_fn(backfill=args.backfill, backfill_end=args.backfill_end))
+    elif args.job in _SOURCE_JOBS:
         asyncio.run(job_fn(source=args.source, backfill=args.backfill, backfill_end=args.backfill_end))
     else:
         asyncio.run(job_fn())

@@ -26,6 +26,46 @@ OPENAPI  = "https://openapi.twse.com.tw/v1"
 TWSE     = "https://www.twse.com.tw"
 TAIFEX   = "https://www.taifex.com.tw"
 
+# TWSE 標準產業代碼 → 中文名稱對照表
+_INDUSTRY_CODE_MAP: dict[str, str] = {
+    "01": "水泥工業",
+    "02": "食品工業",
+    "03": "塑膠工業",
+    "04": "紡織纖維",
+    "05": "電機機械",
+    "06": "電器電纜",
+    "07": "化學生技醫療",
+    "08": "玻璃陶瓷",
+    "09": "造紙工業",
+    "10": "鋼鐵工業",
+    "11": "橡膠工業",
+    "12": "汽車工業",
+    "13": "電子工業",
+    "14": "建材營造",
+    "15": "航運業",
+    "16": "觀光事業",
+    "17": "金融保險",
+    "18": "貿易百貨",
+    "20": "其他",
+    "21": "化學工業",
+    "22": "生技醫療",
+    "23": "油電燃氣",
+    "24": "半導體",
+    "25": "電腦及週邊設備",
+    "26": "光電",
+    "27": "通信網路",
+    "28": "電子零組件",
+    "29": "電子通路",
+    "30": "資訊服務",
+    "31": "其他電子",
+    "32": "文化創意",
+    "33": "農業科技",
+    "34": "電子商務",
+    "80": "受益憑證",
+    "81": "ETF",
+    "99": "存託憑證",
+}
+
 
 class TWSECollector:
     def __init__(self, delay: float = 1.0):
@@ -60,7 +100,8 @@ class TWSECollector:
                 ticker = r.get("公司代號", r.get("SecuritiesCompanyCode", "")).strip()
                 ind    = r.get("產業別", r.get("IndustryType", r.get("TypeOfBusiness", ""))).strip()
                 if ticker in stocks and ind:
-                    stocks[ticker]["industry"] = ind
+                    # 將數字代碼轉換為中文名稱，無對應則保留原值
+                    stocks[ticker]["industry"] = _INDUSTRY_CODE_MAP.get(ind, ind)
         except Exception as e:
             logger.warning("fetch industry from t187ap03_L failed: %s", e)
 

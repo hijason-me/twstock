@@ -96,8 +96,8 @@ CREATE TABLE IF NOT EXISTS monthly_revenue (
     year_month  CHAR(7)      NOT NULL,  -- YYYY-MM
     ticker      VARCHAR(10)  NOT NULL,
     revenue     BIGINT,                 -- 當月營收 (千元)
-    revenue_mom NUMERIC(8,4),           -- 月增率 (%)
-    revenue_yoy NUMERIC(8,4),           -- 年增率 (%)
+    revenue_mom NUMERIC(12,4),          -- 月增率 (%)，小公司極端值可能超過 ±9999
+    revenue_yoy NUMERIC(12,4),          -- 年增率 (%)
     PRIMARY KEY (year_month, ticker),
     FOREIGN KEY (ticker) REFERENCES stocks(ticker) ON DELETE CASCADE
 );
@@ -108,9 +108,9 @@ CREATE TABLE IF NOT EXISTS monthly_revenue (
 CREATE TABLE IF NOT EXISTS financial_statements (
     year_quarter        CHAR(7)      NOT NULL,  -- YYYY-QN
     ticker              VARCHAR(10)  NOT NULL,
-    gross_profit_margin NUMERIC(8,4),
-    operating_margin    NUMERIC(8,4),
-    net_profit_margin   NUMERIC(8,4),
+    gross_profit_margin NUMERIC(12,4),
+    operating_margin    NUMERIC(12,4),
+    net_profit_margin   NUMERIC(12,4),
     eps                 NUMERIC(10,4),
     eps_forecast        NUMERIC(10,4),          -- FinMind 分析師預估 (付費)
     bvps                NUMERIC(12,4),

@@ -5,5 +5,12 @@ metadata:
   namespace: {{ .Values.namespace }}
 data:
   TWSTOCK_DATABASE_URL: "postgresql+asyncpg://{{ .Values.postgresql.credentials.username }}:$(TWSTOCK_DB_PASSWORD)@twstock-postgresql.{{ .Values.namespace }}.svc.cluster.local:5432/{{ .Values.postgresql.credentials.database }}"
-  TWSTOCK_REQUEST_DELAY: {{ .Values.requestDelay | quote }}
-  TWSTOCK_LOG_LEVEL: {{ .Values.logLevel | quote }}
+  TWSTOCK_REQUEST_DELAY:             {{ .Values.requestDelay | quote }}
+  TWSTOCK_LOG_LEVEL:                 {{ .Values.logLevel | quote }}
+  # Data source selection
+  TWSTOCK_REVENUE_SOURCE:            {{ .Values.config.revenueSource | quote }}
+  TWSTOCK_FINANCIALS_SOURCE:         {{ .Values.config.financialsSource | quote }}
+  TWSTOCK_HOLDERS_SOURCE:            {{ .Values.config.holdersSource | quote }}
+  # FinMind throttle
+  TWSTOCK_FINMIND_TICKERS_LIMIT:     {{ .Values.config.finmindTickersLimit | quote }}
+  TWSTOCK_FINMIND_REQUEST_DELAY:     {{ .Values.config.finmindRequestDelay | quote }}

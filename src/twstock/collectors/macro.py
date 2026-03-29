@@ -4,7 +4,7 @@ Macro indicator collector.
   - Fed Funds Rate, CPI       via FRED API
 """
 import logging
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 import httpx
 import yfinance as yf
@@ -40,7 +40,7 @@ class MacroCollector:
                     continue
                 for ts, row in df.iterrows():
                     records.append({
-                        "time":      ts.isoformat(),
+                        "time":      ts.to_pydatetime(),
                         "indicator": indicator,
                         "value":     float(row["Close"]),
                         "source":    "yfinance",
@@ -70,7 +70,7 @@ class MacroCollector:
                         if obs["value"] == ".":
                             continue
                         records.append({
-                            "time":      obs["date"] + "T00:00:00",
+                            "time":      datetime.fromisoformat(obs["date"] + "T00:00:00+00:00"),
                             "indicator": indicator,
                             "value":     float(obs["value"]),
                             "source":    "FRED",

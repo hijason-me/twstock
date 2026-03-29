@@ -1,12 +1,21 @@
 """
 TWSE (台灣證券交易所) collector.
 Data sources:
-  - OpenAPI v1: https://openapi.twse.com.tw/v1  (股票清單)
-  - Legacy JSON endpoints (MI_INDEX, T86, MI_MARGN, institutional_derivative)
+  - OpenAPI v1:  https://openapi.twse.com.tw/v1  (股票清單、月營收、季財報)
+  - Legacy JSON: MI_INDEX, T86, MI_MARGN
+  - TAIFEX:      https://www.taifex.com.tw       (外資台指期未平倉)
+
+月營收 endpoint:  GET /v1/opendata/t187ap05_P
+  → 一次回傳全部公司、僅最新月、免費免 key
+
+季財報 endpoints: GET /v1/opendata/t187ap06_L_{type}
+  type: ci(一般) | basi(銀行) | fh(金控) | ins(保險) | bd(證券期貨) | mim(其他)
+  → 各 ~1 call 回傳該產業全部公司、僅最新季、免費免 key
 """
 import asyncio
+import json
 import logging
-from datetime import date
+from datetime import date, datetime, timezone
 from typing import Any
 
 from .base import build_client, throttle
@@ -15,6 +24,7 @@ logger = logging.getLogger(__name__)
 
 OPENAPI  = "https://openapi.twse.com.tw/v1"
 TWSE     = "https://www.twse.com.tw"
+TAIFEX   = "https://www.taifex.com.tw"
 
 
 class TWSECollector:
@@ -36,14 +46,15 @@ class TWSECollector:
         resp.raise_for_status()
         result = []
         for r in resp.json():
-            ticker = r.get("公司代號", "").strip()
-            name   = r.get("公司簡稱", "").strip()
+            # TWSE OpenAPI 現以英文欄位回傳: Code, Name
+            ticker = r.get("Code", r.get("公司代號", "")).strip()
+            name   = r.get("Name", r.get("公司簡稱", "")).strip()
             if ticker and name:
                 result.append({
                     "ticker":   ticker,
                     "name":     name,
                     "market":   "TWSE",
-                    "industry": r.get("產業別", ""),
+                    "industry": r.get("Industry", r.get("產業別", "")),
                 })
         logger.info("Fetched %d listed stocks", len(result))
         return result
@@ -58,11 +69,22 @@ class TWSECollector:
             params={"response": "json", "date": date_str, "type": "ALLBUT0999"},
         )
         resp.raise_for_status()
-        data   = resp.json()
-        fields = data.get("fields9", [])
-        rows   = data.get("data9", [])
+        data = resp.json()
+        # 新版 MI_INDEX 把各類別放在 tables 陣列內，每個 table 有 fields + data
+        # 找含有 "證券代號" 欄位的 table（普通股那張）
+        fields, rows = [], []
+        for table in data.get("tables", []):
+            f = table.get("fields", [])
+            if "證券代號" in f:
+                fields = f
+                rows   = table.get("data", [])
+                break
+        # 舊版 fallback
+        if not fields:
+            fields = data.get("fields9") or data.get("fields8", [])
+            rows   = data.get("data9")   or data.get("data8",   [])
         if not fields or not rows:
-            logger.warning("No price data for %s", date_str)
+            logger.warning("No price data for %s (keys: %s)", date_str, list(data.keys()))
             return []
 
         col = {name: idx for idx, name in enumerate(fields)}
@@ -70,7 +92,7 @@ class TWSECollector:
         for row in rows:
             try:
                 result.append({
-                    "date":   trade_date.isoformat(),
+                    "date":   datetime(trade_date.year, trade_date.month, trade_date.day, tzinfo=timezone.utc),
                     "ticker": row[col["證券代號"]].strip(),
                     "open":   float(row[col["開盤價"]].replace(",", "")),
                     "high":   float(row[col["最高價"]].replace(",", "")),
@@ -108,7 +130,7 @@ class TWSECollector:
                 trust_net   = int(row[col["投信買賣超股數"]].replace(",", "")) // 1000
                 dealer_net  = int(row[col["自營商買賣超股數"]].replace(",", "")) // 1000
                 result.append({
-                    "date":        trade_date.isoformat(),
+                    "date":        datetime(trade_date.year, trade_date.month, trade_date.day, tzinfo=timezone.utc),
                     "ticker":      row[col["證券代號"]].strip(),
                     "foreign_net": foreign_net,
                     "trust_net":   trust_net,
@@ -121,32 +143,53 @@ class TWSECollector:
         return result
 
     # ------------------------------------------------------------------
-    # 外資台指期淨未平倉
+    # 外資台指期淨未平倉  (來源：TAIFEX)
     # ------------------------------------------------------------------
     async def fetch_futures_positions(self, trade_date: date) -> dict | None:
+        """
+        抓取外資與自營商台指期淨未平倉口數。
+        資料來源為 TAIFEX（台灣期貨交易所）三大法人期貨未平倉報表。
+        非交易日或資料未發布時回傳 None，不中斷 job。
+        """
         await throttle(self._delay)
-        date_str = trade_date.strftime("%Y%m%d")
-        resp = await self._client.get(
-            f"{TWSE}/derivatives/institutional_derivative",
-            params={"response": "json", "date": date_str},
-        )
-        resp.raise_for_status()
-        rows: list[list[Any]] = resp.json().get("data", [])
-        record: dict[str, Any] = {"date": trade_date.isoformat()}
-        for row in rows:
-            name = row[0]
+        date_str = trade_date.strftime("%Y/%m/%d")
+        try:
+            resp = await self._client.post(
+                f"{TAIFEX}/cht/3/futContractsDate",
+                data={
+                    "queryStartDate": date_str,
+                    "queryEndDate":   date_str,
+                    "commodityId":    "TXF",  # 臺股期貨
+                },
+                headers={"Referer": f"{TAIFEX}/cht/3/futContractsDate"},
+            )
+            resp.raise_for_status()
+            data = resp.json()
+        except (json.JSONDecodeError, Exception) as e:
+            logger.warning("fetch_futures_positions failed for %s: %s", date_str, e)
+            return None
+
+        record: dict[str, Any] = {
+            "date": datetime(trade_date.year, trade_date.month, trade_date.day, tzinfo=timezone.utc)
+        }
+        for row in data if isinstance(data, list) else data.get("data", []):
             try:
-                if "外資" in name and "臺股期貨" in name:
-                    record["foreign_long"]  = int(str(row[2]).replace(",", ""))
-                    record["foreign_short"] = int(str(row[3]).replace(",", ""))
-                    record["foreign_net"]   = int(str(row[4]).replace(",", ""))
-                elif "自營商" in name and "臺股期貨" in name:
-                    record["dealer_long"]  = int(str(row[2]).replace(",", ""))
-                    record["dealer_short"] = int(str(row[3]).replace(",", ""))
-                    record["dealer_net"]   = int(str(row[4]).replace(",", ""))
+                identity = str(row[2]).strip()   # 身份別欄位
+                if "外資" in identity:
+                    record["foreign_long"]  = int(str(row[3]).replace(",", ""))
+                    record["foreign_short"] = int(str(row[4]).replace(",", ""))
+                    record["foreign_net"]   = int(str(row[5]).replace(",", ""))
+                elif "自營商" in identity:
+                    record["dealer_long"]  = int(str(row[3]).replace(",", ""))
+                    record["dealer_short"] = int(str(row[4]).replace(",", ""))
+                    record["dealer_net"]   = int(str(row[5]).replace(",", ""))
             except (ValueError, IndexError):
                 continue
-        return record if "foreign_net" in record else None
+
+        if "foreign_net" not in record:
+            logger.warning("No futures position data for %s", date_str)
+            return None
+        return record
 
     # ------------------------------------------------------------------
     # 融資融券餘額
@@ -159,23 +202,140 @@ class TWSECollector:
             params={"response": "json", "date": date_str, "selectType": "ALL"},
         )
         resp.raise_for_status()
-        data   = resp.json()
-        fields = data.get("fields", [])
-        rows   = data.get("data", [])
-        if not fields or not rows:
+        data = resp.json()
+
+        # 新版 MI_MARGN 同 MI_INDEX，資料在 tables 陣列中
+        # 找含有 "代號" 欄位的 table（個股融資融券那張）
+        # 欄位有重複名稱（今日餘額出現兩次），須用索引存取：
+        #   idx 0: 代號, idx 6: 融資今日餘額, idx 12: 融券今日餘額
+        rows = []
+        for table in data.get("tables", []):
+            fields = table.get("fields", [])
+            if "代號" in fields:
+                rows = table.get("data", [])
+                break
+        # 舊版 fallback
+        if not rows:
+            fields = data.get("fields", [])
+            rows   = data.get("data", [])
+            if fields and rows:
+                col = {name: idx for idx, name in enumerate(fields)}
+                result = []
+                for row in rows:
+                    try:
+                        result.append({
+                            "date":           datetime(trade_date.year, trade_date.month, trade_date.day, tzinfo=timezone.utc),
+                            "ticker":         row[col["股票代號"]].strip(),
+                            "margin_balance": int(row[col["融資餘額"]].replace(",", "")),
+                            "short_balance":  int(row[col["融券餘額"]].replace(",", "")),
+                        })
+                    except (ValueError, KeyError):
+                        continue
+                logger.info("Fetched %d margin records for %s", len(result), date_str)
+                return result
             return []
 
-        col = {name: idx for idx, name in enumerate(fields)}
         result = []
         for row in rows:
             try:
                 result.append({
-                    "date":           trade_date.isoformat(),
-                    "ticker":         row[col["股票代號"]].strip(),
-                    "margin_balance": int(row[col["融資餘額"]].replace(",", "")),
-                    "short_balance":  int(row[col["融券餘額"]].replace(",", "")),
+                    "date":           datetime(trade_date.year, trade_date.month, trade_date.day, tzinfo=timezone.utc),
+                    "ticker":         row[0].strip(),
+                    "margin_balance": int(str(row[6]).replace(",", "")),
+                    "short_balance":  int(str(row[12]).replace(",", "")),
+                })
+            except (ValueError, IndexError):
+                continue
+        logger.info("Fetched %d margin records for %s", len(result), date_str)
+        return result
+
+    # ------------------------------------------------------------------
+    # 月營收 (TWSE OpenAPI bulk — 免費、一次取全部、僅最新月)
+    # ------------------------------------------------------------------
+    async def fetch_monthly_revenue(self) -> list[dict]:
+        """
+        GET /v1/opendata/t187ap05_L  (L = 上市公司)
+        資料年月格式: "11502" = ROC 115年02月 = 2026-02
+        一次回傳全部上市公司當月營收，無需逐支查詢。
+        """
+        resp = await self._client.get(f"{OPENAPI}/opendata/t187ap05_L")
+        resp.raise_for_status()
+        result = []
+        for r in resp.json():
+            try:
+                # 資料年月: "11502" → "2026-02"
+                ym_raw = str(r.get("資料年月", "")).strip()
+                roc_y  = int(ym_raw[:3])
+                month  = int(ym_raw[3:])
+                year_month = f"{roc_y + 1911}-{month:02d}"
+
+                revenue = r.get("營業收入-當月營收", "").replace(",", "").strip()
+                mom     = r.get("營業收入-上月比較增減(%)", "").strip()
+                yoy     = r.get("營業收入-去年同月增減(%)", "").strip()
+
+                def _pct(v: str) -> float:
+                    """Parse % string, clamp to NUMERIC(12,4) safe range."""
+                    try:
+                        return max(-99999999.0, min(99999999.0, float(v)))
+                    except (ValueError, TypeError):
+                        return 0.0
+
+                result.append({
+                    "year_month":  year_month,
+                    "ticker":      r.get("公司代號", "").strip(),
+                    "revenue":     int(revenue) if revenue else 0,
+                    "revenue_mom": _pct(mom) if mom not in ("", "--", "-") else 0.0,
+                    "revenue_yoy": _pct(yoy) if yoy not in ("", "--", "-") else 0.0,
                 })
             except (ValueError, KeyError):
                 continue
-        logger.info("Fetched %d margin records for %s", len(result), date_str)
+        logger.info("TWSE monthly_revenue: %d records", len(result))
+        return result
+
+    # ------------------------------------------------------------------
+    # 季財報三率 + EPS (TWSE OpenAPI bulk — 免費、~6 calls、僅最新季)
+    # ------------------------------------------------------------------
+    # 各產業 endpoint 的 type 後綴
+    _FINANCIAL_TYPES = ["ci", "basi", "fh", "ins", "bd", "mim"]
+
+    async def fetch_quarterly_financials(self) -> list[dict]:
+        """
+        GET /v1/opendata/t187ap06_L_{type}
+        年度格式: "114" = ROC 114年 = 2025, 季別: "4" → "2025-Q4"
+        合併 6 個產業 endpoint，一次取全部公司最新季財報。
+        """
+        result = []
+        for ftype in self._FINANCIAL_TYPES:
+            try:
+                resp = await self._client.get(
+                    f"{OPENAPI}/opendata/t187ap06_L_{ftype}"
+                )
+                resp.raise_for_status()
+                for r in resp.json():
+                    try:
+                        roc_y  = int(str(r.get("年度", "0")).strip())
+                        season = str(r.get("季別", "")).strip()
+                        year_quarter = f"{roc_y + 1911}-Q{season}"
+
+                        rev = r.get("營業收入", "").replace(",", "").strip()
+                        gp  = r.get("營業毛利（毛損）淨額", "").replace(",", "").strip()
+                        oi  = r.get("營業利益（損失）", "").replace(",", "").strip()
+                        ni  = r.get("本期淨利（淨損）", "").replace(",", "").strip()
+                        eps = r.get("基本每股盈餘（元）", "").replace(",", "").strip()
+
+                        revenue = float(rev) if rev else None
+                        result.append({
+                            "year_quarter":        year_quarter,
+                            "ticker":              r.get("公司代號", "").strip(),
+                            "gross_profit_margin": (float(gp) / revenue * 100) if revenue and gp else None,
+                            "operating_margin":    (float(oi) / revenue * 100) if revenue and oi else None,
+                            "net_profit_margin":   (float(ni) / revenue * 100) if revenue and ni else None,
+                            "eps":                 float(eps) if eps else None,
+                        })
+                    except (ValueError, KeyError, ZeroDivisionError):
+                        continue
+                logger.info("TWSE financials type=%s: %d records so far", ftype, len(result))
+            except Exception as e:
+                logger.warning("TWSE financials type=%s failed: %s", ftype, e)
+        logger.info("TWSE quarterly_financials total: %d records", len(result))
         return result

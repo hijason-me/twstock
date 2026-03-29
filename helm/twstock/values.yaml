@@ -71,6 +71,20 @@ secrets:
   telegramBotToken: ""
   telegramChatId: ""
 
+# ── Data source selection ─────────────────────────────────────
+# 可透過 ArgoCD UI Parameters 或 --set 覆蓋
+config:
+  # monthly_revenue:      twse (bulk, 免費, 僅最新月) | finmind (per-ticker, 需 token)
+  revenueSource: "twse"
+  # quarterly_financials: twse (bulk, 免費, 僅最新季) | finmind (per-ticker, 需 token)
+  financialsSource: "twse"
+  # weekly_major_holders: tdcc (bulk, 免費) | finmind (per-ticker, 需付費方案)
+  holdersSource: "tdcc"
+  # FinMind 限流: free tier 建議 200, 付費設 0 (無限)
+  finmindTickersLimit: "200"
+  # FinMind per-ticker 間隔秒數: 10s = ~360 req/hr (safe)
+  finmindRequestDelay: "10.0"
+
 # ── General ───────────────────────────────────────────────────
 requestDelay: "1.0"
 logLevel: INFO

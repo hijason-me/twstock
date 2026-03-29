@@ -4,6 +4,7 @@ Free tier: 600 req/day. Paid plan unlocks EPS forecast and higher limits.
 Docs: https://finmindtrade.com/analysis/#/Announcement/api
 """
 import logging
+from datetime import datetime, timezone
 
 from .base import build_client
 
@@ -160,7 +161,7 @@ class FinMindCollector:
                         pct   = float(row.get("percent", 0) or 0)
                         if d not in date_map:
                             date_map[d] = {
-                                "date": d, "ticker": ticker,
+                                "date": datetime.fromisoformat(d + "T00:00:00+00:00"), "ticker": ticker,
                                 "holders_1000_ratio": 0.0, "retail_ratio": 0.0,
                             }
                         if any(kw in level for kw in _MAJOR_TIERS):

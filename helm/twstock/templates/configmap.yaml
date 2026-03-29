@@ -4,7 +4,6 @@ metadata:
   name: twstock-config
   namespace: {{ .Values.namespace }}
 data:
-  TWSTOCK_DATABASE_URL: "postgresql+asyncpg://{{ .Values.postgresql.credentials.username }}:$(TWSTOCK_DB_PASSWORD)@twstock-postgresql.{{ .Values.namespace }}.svc.cluster.local:5432/{{ .Values.postgresql.credentials.database }}"
   TWSTOCK_REQUEST_DELAY:             {{ .Values.requestDelay | quote }}
   TWSTOCK_LOG_LEVEL:                 {{ .Values.logLevel | quote }}
   # Data source selection

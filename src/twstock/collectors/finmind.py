@@ -3,6 +3,7 @@ FinMind API collector.
 Free tier: 600 req/day. Paid plan unlocks EPS forecast and higher limits.
 Docs: https://finmindtrade.com/analysis/#/Announcement/api
 """
+import asyncio
 import logging
 from datetime import datetime, timezone
 
@@ -19,8 +20,9 @@ _RETAIL_TIERS = ["1 to 999", "1,000 to 5,000", "5,001 to 10,000"]
 
 
 class FinMindCollector:
-    def __init__(self, api_token: str = ""):
+    def __init__(self, api_token: str = "", request_delay: float = 10.0):
         self._token = api_token
+        self._delay = request_delay  # seconds between per-ticker requests
 
     def _params(self, dataset: str, ticker: str, start_date: str) -> dict:
         p = {"dataset": dataset, "data_id": ticker, "start_date": start_date}
@@ -36,7 +38,7 @@ class FinMindCollector:
     ) -> list[dict]:
         records = []
         async with build_client() as client:
-            for ticker in tickers:
+            for i, ticker in enumerate(tickers):
                 try:
                     resp = await client.get(
                         FINMIND_BASE,
@@ -53,6 +55,10 @@ class FinMindCollector:
                         })
                 except Exception as e:
                     logger.warning("FinMind revenue %s: %s", ticker, e)
+                if i % 10 == 9:
+                    logger.info("monthly_revenue progress: %d/%d tickers, %d records", i + 1, len(tickers), len(records))
+                if self._delay > 0 and i < len(tickers) - 1:
+                    await asyncio.sleep(self._delay)
         logger.info("Monthly revenue: %d records", len(records))
         return records
 
@@ -64,7 +70,7 @@ class FinMindCollector:
     ) -> list[dict]:
         records = []
         async with build_client() as client:
-            for ticker in tickers:
+            for i, ticker in enumerate(tickers):
                 try:
                     resp = await client.get(
                         FINMIND_BASE,
@@ -102,6 +108,10 @@ class FinMindCollector:
                         })
                 except Exception as e:
                     logger.warning("FinMind financials %s: %s", ticker, e)
+                if i % 10 == 9:
+                    logger.info("quarterly_financials progress: %d/%d tickers, %d records", i + 1, len(tickers), len(records))
+                if self._delay > 0 and i < len(tickers) - 1:
+                    await asyncio.sleep(self._delay)
         logger.info("Financial statements: %d records", len(records))
         return records
 
@@ -117,7 +127,7 @@ class FinMindCollector:
         """
         records = []
         async with build_client() as client:
-            for ticker in tickers:
+            for i, ticker in enumerate(tickers):
                 try:
                     resp = await client.get(
                         FINMIND_BASE,
@@ -132,6 +142,8 @@ class FinMindCollector:
                         })
                 except Exception as e:
                     logger.warning("FinMind EPS forecast %s: %s", ticker, e)
+                if self._delay > 0 and i < len(tickers) - 1:
+                    await asyncio.sleep(self._delay)
         logger.info("EPS forecasts: %d records", len(records))
         return records
 
@@ -147,7 +159,7 @@ class FinMindCollector:
         """
         records = []
         async with build_client() as client:
-            for ticker in tickers:
+            for i, ticker in enumerate(tickers):
                 try:
                     resp = await client.get(
                         FINMIND_BASE,
@@ -171,5 +183,9 @@ class FinMindCollector:
                     records.extend(date_map.values())
                 except Exception as e:
                     logger.warning("FinMind major_holders %s: %s", ticker, e)
+                if i % 10 == 9:
+                    logger.info("major_holders progress: %d/%d tickers, %d records", i + 1, len(tickers), len(records))
+                if self._delay > 0 and i < len(tickers) - 1:
+                    await asyncio.sleep(self._delay)
         logger.info("Major holders: %d records", len(records))
         return records

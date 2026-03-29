@@ -186,10 +186,17 @@ async def job_macro_indicators() -> None:
 
 
 async def _get_tickers(limit: int | None = None) -> list[str]:
-    """Fetch tickers from DB. Pass limit=None to get all."""
+    """Fetch tickers from DB.
+
+    Ordered by ticker length ASC then lexically, so 4-digit real stocks (1xxx~9xxx)
+    come before 5-6 char ETF/bond codes (00xxx, 009xxx).
+    Pass limit=None to get all.
+    """
     clause = f"LIMIT {limit}" if limit else ""
     async with AsyncSessionLocal() as s:
-        result = await s.execute(text(f"SELECT ticker FROM stocks ORDER BY ticker {clause}"))
+        result = await s.execute(
+            text(f"SELECT ticker FROM stocks ORDER BY LENGTH(ticker), ticker {clause}")
+        )
         return [r[0] for r in result.fetchall()]
 
 
@@ -203,7 +210,10 @@ def _require_finmind() -> "FinMindCollector | None":
             "  Limit tickers: TWSTOCK_FINMIND_TICKERS_LIMIT=200  (default)"
         )
         return None
-    return FinMindCollector(api_token=settings.finmind_api_token)
+    return FinMindCollector(
+        api_token=settings.finmind_api_token,
+        request_delay=settings.finmind_request_delay,
+    )
 
 
 async def job_monthly_revenue(source: str | None = None, backfill: str | None = None, backfill_end: str | None = None) -> None:
